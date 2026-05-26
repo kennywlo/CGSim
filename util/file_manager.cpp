@@ -32,6 +32,7 @@ void FileManager::register_site(sg4::NetZone* site, const std::unordered_map<std
 
     const std::string& site_name = site->get_name();
     SiteStorages[site_name] = std::stoll(site->get_property("storage_capacity_bytes"));
+    SiteFiles[site_name];   // ensure entry exists even when no files are pre-registered
 
     for (const auto& [file, size] : files) {
         SiteFiles[site_name].insert(file);

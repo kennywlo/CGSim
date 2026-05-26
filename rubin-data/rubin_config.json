@@ -1,0 +1,13 @@
+{
+    "Grid_Name": "Rubin-Data-Facilities",
+    "Sites_Information": "/home/kennylo/llm-apps/app/CGSim/rubin-data/site_info.json",
+    "Sites_Connection_Information": "/home/kennylo/llm-apps/app/CGSim/rubin-data/site_conn_info.json",
+    "Dispatcher_Plugin": "/home/kennylo/llm-apps/app/CGSim/dispatch_plugins/simple-test-plugin/build/libSimpleDispatcherPlugin.so",
+    "Limited_Sites": [],
+    "Custom_Parameters":
+    {
+        "Num_of_Jobs": "-1",
+        "jobs_file": "/home/kennylo/llm-apps/app/CGSim/rubin-data/jobs.csv",
+        "output_file": "/home/kennylo/llm-apps/app/CGSim/rubin-data/output.db"
+    }
+}

@@ -86,7 +86,7 @@ JobQueue WORKLOAD_MANAGER::getWorkload() {
             //job->job_status            = getColumn(row, column_map, "jobstatus", "");
             //job->job_name              = getColumn(row, column_map, "jobname", "");
             job->cpu_consumption_time  = std::stod(getColumn(row, column_map, "cpuconsumptiontime", "0"));
-            job->comp_site             = "AGLT2_site_"+getColumn(row, column_map, "computingsite", "");
+            job->comp_site             = getColumn(row, column_map, "computingsite", "");
             //job->destination_dataset_name = getColumn(row, column_map, "destinationdblock", "");
             //job->destination_SE        = getColumn(row, column_map, "destinationse", "");
             //job->source_site           = getColumn(row, column_map, "sourcesite", "");
@@ -121,7 +121,7 @@ JobQueue WORKLOAD_MANAGER::getWorkload() {
                     std::string key = token.substr(0, colon_pos);
                     key.erase(std::remove_if(key.begin(), key.end(), ::isspace), key.end());
                     key.erase(std::remove(key.begin(), key.end(), '"'), key.end());
-                    job->input_files[key] = {0.0, {}};
+                    job->input_files[key] = {0LL, {}};
                 }
             }
 
