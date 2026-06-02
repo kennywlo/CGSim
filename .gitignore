@@ -1,3 +1,7 @@
 build/
 logs/
 dispatch_plugins/simple-test-plugin/build/
+rubin-data/scenarios/
+toy_data/*.db
+toy_data/*.db-shm
+toy_data/*.db-wal

@@ -11,8 +11,8 @@ Pipeline (per example):
      flow-maestro/sft training data (OpenAI-style tool_calls + harmony `text`).
 
 Successor to SimulationAnalysis.py (which used Gemini for live Q&A). This module
-uses the Anthropic SDK, prompt caching on the schema prefix, and grounds every
-answer in executed SQL.
+uses the OpenAI-compatible client (targeting SLAC AI gateway or direct Anthropic),
+and grounds every answer in executed SQL.
 
 Usage:
   python CGSimDataGenerator.py --db /tmp/rubin_output.db --n 50 \
@@ -23,20 +23,22 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sqlite3
 import sys
 from pathlib import Path
 from typing import Any
 
-import anthropic
+import httpx
+import openai
 from pydantic import BaseModel
 
 # ============================================================
 # Models (override on the CLI / constructor to pin a version)
 # ============================================================
-GENERATOR_MODEL = "claude-opus-4-8"   # teacher: question + SQL + answer
-JUDGE_MODEL = "claude-sonnet-4-6"     # optional quality filter
+GENERATOR_MODEL = "claude-sonnet-4-6"  # short name; resolved to SLAC prefix at runtime
+JUDGE_MODEL     = "claude-sonnet-4-6"
 
 MAX_ROWS = 200          # cap rows fed back as the tool result
 MAX_RESULT_CHARS = 6000  # cap tool-result payload size in the SFT example
@@ -201,6 +203,11 @@ class QABatch(BaseModel):
     pairs: list[QAPair]
 
 
+class JudgeVerdict(BaseModel):
+    keep: bool
+    reason: str
+
+
 # ============================================================
 # Canonical SFT rendering (mirrors build_canonical_json_sft_dataset.render_canonical)
 # ============================================================
@@ -237,6 +244,37 @@ def render_canonical(messages: list[dict[str, Any]]) -> str:
 
 
 # ============================================================
+# OpenAI-compatible client — SLAC AI gateway or direct Anthropic
+# ============================================================
+_SLAC_BASE_URL      = "https://ai-api.slac.stanford.edu/v1"
+_SLAC_PROXY         = "socks5h://localhost:1080"
+_SLAC_MODEL_PREFIX  = "us.anthropic."
+
+
+def _resolve_model(name: str) -> str:
+    """Prepend SLAC model prefix when using SLAC AI gateway."""
+    if os.environ.get("SLAC_AI_KEY"):
+        return _SLAC_MODEL_PREFIX + name
+    return name
+
+
+def _make_client() -> openai.OpenAI:
+    slac_key = os.environ.get("SLAC_AI_KEY")
+    if slac_key:
+        return openai.OpenAI(
+            api_key=slac_key,
+            base_url=_SLAC_BASE_URL,
+            http_client=httpx.Client(proxy=_SLAC_PROXY),
+        )
+    # Direct Anthropic via openai-compatible shim
+    return openai.OpenAI(
+        api_key=os.environ.get("ANTHROPIC_API_KEY", ""),
+        base_url="https://api.anthropic.com/v1/",
+        default_headers={"anthropic-version": "2023-06-01"},
+    )
+
+
+# ============================================================
 # Generator
 # ============================================================
 class CGSimDataGenerator:
@@ -245,20 +283,15 @@ class CGSimDataGenerator:
         db_path: str,
         generator_model: str = GENERATOR_MODEL,
         judge_model: str = JUDGE_MODEL,
-        client: anthropic.Anthropic | None = None,
+        use_judge: bool = True,
+        client: openai.OpenAI | None = None,
     ):
         self.db_path = db_path
-        self.generator_model = generator_model
-        self.judge_model = judge_model
-        self.client = client or anthropic.Anthropic()
-        # Cached system prefix: domain primer + schema (stable across all calls)
-        self._system = [
-            {
-                "type": "text",
-                "text": DOMAIN_PRIMER,
-                "cache_control": {"type": "ephemeral"},
-            }
-        ]
+        self.generator_model = _resolve_model(generator_model)
+        self.judge_model = _resolve_model(judge_model)
+        self.use_judge = use_judge
+        self.client = client or _make_client()
+        print(f"  generator: {self.generator_model}  judge: {self.judge_model}")
 
     # ---- DB execution (ground truth) -----------------------------------
     def _execute_sql(self, sql: str) -> tuple[list[str], list[tuple]]:
@@ -284,7 +317,8 @@ class CGSimDataGenerator:
         return text
 
     # ---- Step 1: propose diverse {question, sql} pairs -----------------
-    def propose_pairs(self, n: int) -> list[QAPair]:
+    def _propose_batch(self, n: int) -> list[QAPair]:
+        """Request up to n pairs in a single API call (keep n ≤ 25 to fit in 16k tokens)."""
         prompt = (
             f"Propose {n} DISTINCT analytical questions an operator might ask about "
             "this simulation, each paired with a single SQL SELECT against EVENTS that "
@@ -293,18 +327,29 @@ class CGSimDataGenerator:
             "comparisons. Vary aggregation (AVG, MAX, COUNT, GROUP BY). Every SQL must be "
             "valid SQLite using only the documented schema and json_extract for metadata."
         )
-        # effort defaults to "high"; .parse() owns output_config.format, so don't
-        # pass a separate output_config here (it would collide with the schema).
-        resp = self.client.messages.parse(
+        resp = self.client.beta.chat.completions.parse(
             model=self.generator_model,
             max_tokens=16000,
-            thinking={"type": "adaptive"},
-            system=self._system,
-            messages=[{"role": "user", "content": prompt}],
-            output_format=QABatch,
+            messages=[
+                {"role": "system", "content": DOMAIN_PRIMER},
+                {"role": "user",   "content": prompt},
+            ],
+            response_format=QABatch,
         )
-        batch = resp.parsed_output
+        batch = resp.choices[0].message.parsed
         return batch.pairs if batch else []
+
+    def propose_pairs(self, n: int, batch_size: int = 25) -> list[QAPair]:
+        """Propose n pairs, batching into calls of batch_size to stay within token limits."""
+        pairs: list[QAPair] = []
+        remaining = n
+        while remaining > 0:
+            got = self._propose_batch(min(remaining, batch_size))
+            pairs.extend(got)
+            remaining -= len(got)
+            if not got:
+                break
+        return pairs
 
     # ---- Step 2: explain real results ----------------------------------
     def explain(self, question: str, sql: str, result_text: str) -> str:
@@ -315,15 +360,45 @@ class CGSimDataGenerator:
             "Write a concise, operational answer grounded ONLY in these results. "
             "Cite concrete numbers. Do not speculate beyond the data. No SQL talk."
         )
-        resp = self.client.messages.create(
+        resp = self.client.chat.completions.create(
             model=self.generator_model,
             max_tokens=2000,
-            thinking={"type": "adaptive"},
-            output_config={"effort": "medium"},
-            system=self._system,
-            messages=[{"role": "user", "content": prompt}],
+            messages=[
+                {"role": "system", "content": DOMAIN_PRIMER},
+                {"role": "user",   "content": prompt},
+            ],
         )
-        return "".join(b.text for b in resp.content if b.type == "text").strip()
+        return resp.choices[0].message.content.strip()
+
+    # ---- Step 3: judge quality ------------------------------------------
+    def judge_example(self, question: str, sql: str, result_text: str, answer: str) -> JudgeVerdict:
+        prompt = (
+            "You are a quality-filter for an SFT dataset that teaches a model to answer "
+            "ATLAS Grid computing questions by querying a simulation database.\n\n"
+            "Evaluate the following example on ALL four criteria:\n"
+            "1. QUESTION: Non-trivial operational question (not just row counts with no context).\n"
+            "2. SQL: Correct SELECT using only documented EVENTS schema and json_extract; "
+            "addresses the question; no hallucinated columns or keys.\n"
+            "3. GROUNDING: Answer cites concrete numbers from the query results; "
+            "no fabricated figures.\n"
+            "4. ANSWER QUALITY: Clear, concise, operationally useful; no SQL jargon.\n\n"
+            f"Question:\n{question}\n\n"
+            f"SQL:\n{sql}\n\n"
+            f"Query results (JSON):\n{result_text}\n\n"
+            f"Answer:\n{answer}\n\n"
+            "Set keep=true only if ALL four criteria pass. "
+            "Set keep=false and explain which criterion failed in reason."
+        )
+        resp = self.client.beta.chat.completions.parse(
+            model=self.judge_model,
+            max_tokens=2048,
+            messages=[
+                {"role": "system", "content": DOMAIN_PRIMER},
+                {"role": "user",   "content": prompt},
+            ],
+            response_format=JudgeVerdict,
+        )
+        return resp.choices[0].message.parsed or JudgeVerdict(keep=False, reason="no verdict returned")
 
     # ---- Build one SFT row ---------------------------------------------
     def generate_example(self, pair: QAPair) -> dict[str, Any] | None:
@@ -341,6 +416,12 @@ class CGSimDataGenerator:
         answer = self.explain(pair.question, sql, result_text)
         if not answer:
             return None
+
+        if self.use_judge:
+            verdict = self.judge_example(pair.question, sql, result_text, answer)
+            if not verdict.keep:
+                print(f"  skip (judge): {verdict.reason}", file=sys.stderr)
+                return None
 
         messages = [
             {"role": "system", "content": SFT_SYSTEM_PROMPT},
@@ -389,6 +470,7 @@ def main() -> None:
     ap.add_argument("--out", required=True, help="Output JSONL path")
     ap.add_argument("--generator-model", default=GENERATOR_MODEL)
     ap.add_argument("--judge-model", default=JUDGE_MODEL)
+    ap.add_argument("--no-judge", action="store_true", help="Disable judge quality filter")
     args = ap.parse_args()
 
     if not Path(args.db).exists():
@@ -398,6 +480,7 @@ def main() -> None:
         db_path=args.db,
         generator_model=args.generator_model,
         judge_model=args.judge_model,
+        use_judge=not args.no_judge,
     )
     gen.run(args.n, args.out)
 
