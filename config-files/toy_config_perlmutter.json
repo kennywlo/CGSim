@@ -1,0 +1,14 @@
+{
+    "Grid_Name": "ATLAS-GRID",
+    "Sites_Information": "/global/homes/k/kennylo/llm-apps/app/CGSim/toy_data/toy_new_site_info.json",
+    "Sites_Connection_Information": "/global/homes/k/kennylo/llm-apps/app/CGSim/toy_data/toy_new_site_conn_info.json",
+    "Dispatcher_Plugin": "/global/homes/k/kennylo/llm-apps/app/CGSim/dispatch_plugins/simple-test-plugin/build/libSimpleDispatcherPlugin.so",
+    "Limited_Sites": ["AGLT2_site_0", "AGLT2_site_1", "AGLT2_site_2", "AGLT2_site_3", "AGLT2_site_4"],
+    "Custom_Parameters":
+    {
+        "Num_of_Jobs": "500",
+        "jobs_file": "/global/homes/k/kennylo/llm-apps/app/CGSim/toy_data/toy_job.csv",
+        "output_file": "/tmp/toy_job.db",
+        "grid_storage": "34144990000"
+    }
+}

@@ -19,9 +19,13 @@ int main(int argc, char** argv)
 {
     //Initialize Logging
     CGSim::logger::init();
+
+    // Initialize SimGrid first so it can consume its own --cfg/--log flags
+    sg4::Engine e(&argc, argv);
+
     const std::string usage = std::string("usage: ") + argv[0] + " -c config.json";
 
-    //Read in Configuration
+    //Read in Configuration (SimGrid has already stripped its own flags from argv)
     if (argc != 3 || std::string(argv[1]) != "-c") {throw std::runtime_error(usage);}
     const std::string configFile = argv[2];
     CG_SIM_LOG_INFO("Reading in configuration from: {}", configFile);
@@ -41,9 +45,6 @@ int main(int argc, char** argv)
     std::unique_ptr<Parser> parser = std::make_unique<Parser>(siteConnInfoFile, siteInfoFile, filteredSiteList);
     auto sitesInfo     = parser->getSiteInfo();
     auto siteConnInfo  = parser->getSiteConnInfo();
-
-    // Initialize SimGrid
-    sg4::Engine e(&argc, argv);
 
     // Create the platform
     std::unique_ptr<Platform> pf = std::make_unique<Platform>(gridName, sitesInfo, siteConnInfo);

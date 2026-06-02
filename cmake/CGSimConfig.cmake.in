@@ -1,5 +1,9 @@
 @PACKAGE_INIT@
 
+include(CMakeFindDependencyMacro)
+find_dependency(fmt)
+find_dependency(spdlog)
+
 # Import targets from the install location
 include("@CMAKE_INSTALL_PREFIX@/@CMAKE_INSTALL_DATAROOTDIR@/cmake/CGSim/CGSimTargets.cmake")
 
