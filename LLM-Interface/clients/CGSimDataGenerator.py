@@ -37,8 +37,14 @@ from pydantic import BaseModel
 # ============================================================
 # Models (override on the CLI / constructor to pin a version)
 # ============================================================
-GENERATOR_MODEL = "claude-sonnet-4-6"  # short name; resolved to SLAC prefix at runtime
-JUDGE_MODEL     = "claude-sonnet-4-6"
+# Pick a sensible default at import time: Ollama when OLLAMA_HOST is set,
+# otherwise the Sonnet model name that _resolve_model() will prepend with
+# the SLAC gateway prefix (us.anthropic.) before use.
+def _default_model() -> str:
+    return "gpt-oss:120b" if os.environ.get("OLLAMA_HOST") else "claude-sonnet-4-6"
+
+GENERATOR_MODEL = _default_model()
+JUDGE_MODEL     = _default_model()
 
 MAX_ROWS = 200          # cap rows fed back as the tool result
 MAX_RESULT_CHARS = 6000  # cap tool-result payload size in the SFT example
@@ -247,24 +253,37 @@ def render_canonical(messages: list[dict[str, Any]]) -> str:
 # OpenAI-compatible client — SLAC AI gateway or direct Anthropic
 # ============================================================
 _SLAC_BASE_URL      = "https://ai-api.slac.stanford.edu/v1"
-_SLAC_PROXY         = "socks5h://localhost:1080"
 _SLAC_MODEL_PREFIX  = "us.anthropic."
 
 
+def _slac_proxy() -> str:
+    port = os.environ.get("SLAC_PROXY_PORT", "1080")
+    return f"socks5h://localhost:{port}"
+
+
 def _resolve_model(name: str) -> str:
-    """Prepend SLAC model prefix when using SLAC AI gateway."""
+    """Prepend SLAC model prefix when using SLAC AI gateway; skip for Ollama."""
+    if os.environ.get("OLLAMA_HOST"):
+        return name
     if os.environ.get("SLAC_AI_KEY"):
         return _SLAC_MODEL_PREFIX + name
     return name
 
 
 def _make_client() -> openai.OpenAI:
+    # Local Ollama server (highest priority — no gateway, no tunnel)
+    ollama_host = os.environ.get("OLLAMA_HOST")
+    if ollama_host:
+        return openai.OpenAI(
+            api_key="ollama",
+            base_url=f"{ollama_host.rstrip('/')}/v1",
+        )
     slac_key = os.environ.get("SLAC_AI_KEY")
     if slac_key:
         return openai.OpenAI(
             api_key=slac_key,
             base_url=_SLAC_BASE_URL,
-            http_client=httpx.Client(proxy=_SLAC_PROXY),
+            http_client=httpx.Client(proxy=_slac_proxy()),
         )
     # Direct Anthropic via openai-compatible shim
     return openai.OpenAI(
@@ -317,8 +336,16 @@ class CGSimDataGenerator:
         return text
 
     # ---- Step 1: propose diverse {question, sql} pairs -----------------
-    def _propose_batch(self, n: int) -> list[QAPair]:
-        """Request up to n pairs in a single API call (keep n ≤ 25 to fit in 16k tokens)."""
+    def _propose_batch(self, n: int, seen_questions: list[str] | None = None) -> list[QAPair]:
+        """Request up to n pairs in a single API call."""
+        exclusion = ""
+        if seen_questions:
+            # Cap exclusion list to last 30 to keep prompt size bounded
+            listed = "\n".join(f"- {q}" for q in seen_questions[-30:])
+            exclusion = (
+                f"\n\nDo NOT propose any of these already-covered questions:\n{listed}\n"
+                "Generate entirely new questions that explore different aspects of the data."
+            )
         prompt = (
             f"Propose {n} DISTINCT analytical questions an operator might ask about "
             "this simulation, each paired with a single SQL SELECT against EVENTS that "
@@ -326,10 +353,13 @@ class CGSimDataGenerator:
             "disk I/O, job duration/retries, CPU/storage utilization, and cross-site "
             "comparisons. Vary aggregation (AVG, MAX, COUNT, GROUP BY). Every SQL must be "
             "valid SQLite using only the documented schema and json_extract for metadata."
+            f"{exclusion}"
         )
+        # 8000 cap: leaves ~6000 for Q+SQL output after ~2000 reasoning tokens,
+        # enough for 10-15 pairs at ~400 tokens each.
         resp = self.client.beta.chat.completions.parse(
             model=self.generator_model,
-            max_tokens=16000,
+            max_tokens=8000,
             messages=[
                 {"role": "system", "content": DOMAIN_PRIMER},
                 {"role": "user",   "content": prompt},
@@ -339,16 +369,61 @@ class CGSimDataGenerator:
         batch = resp.choices[0].message.parsed
         return batch.pairs if batch else []
 
-    def propose_pairs(self, n: int, batch_size: int = 25) -> list[QAPair]:
-        """Propose n pairs, batching into calls of batch_size to stay within token limits."""
-        pairs: list[QAPair] = []
-        remaining = n
+    @staticmethod
+    def _load_checkpoint(ckpt_path: str) -> list[QAPair]:
+        pairs = []
+        with open(ckpt_path) as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    d = json.loads(line)
+                    pairs.append(QAPair(question=d["question"], sql=d["sql"]))
+        return pairs
+
+    def propose_pairs(
+        self,
+        n: int,
+        batch_size: int = 10,
+        checkpoint_path: str | None = None,
+        preloaded: list[QAPair] | None = None,
+    ) -> list[QAPair]:
+        """Propose n pairs total, resuming from preloaded if provided.
+
+        Saves each batch to checkpoint_path so restarts can skip re-proposing.
+        """
+        pairs: list[QAPair] = list(preloaded or [])
+        seen_questions: list[str] = [p.question for p in pairs]
+        remaining = n - len(pairs)
+        stall = 0  # consecutive batches that yielded no novel questions
+        current_batch = batch_size
         while remaining > 0:
-            got = self._propose_batch(min(remaining, batch_size))
-            pairs.extend(got)
-            remaining -= len(got)
-            if not got:
-                break
+            try:
+                got = self._propose_batch(min(remaining, current_batch), seen_questions=seen_questions)
+                current_batch = batch_size  # reset after success
+            except Exception as e:
+                if "length" in str(e).lower() or "LengthFinishReason" in type(e).__name__:
+                    current_batch = max(1, current_batch // 2)
+                    print(f"  [warn] token limit hit, retrying with batch_size={current_batch}", flush=True)
+                    if current_batch == 1:
+                        # Can't go smaller; skip this iteration to avoid infinite loop
+                        print("  [warn] batch_size=1 still hits limit — skipping batch", flush=True)
+                        break
+                    continue
+                raise
+            novel = [p for p in got if p.question not in seen_questions]
+            pairs.extend(novel)
+            seen_questions.extend(p.question for p in novel)
+            remaining -= len(novel)
+            if checkpoint_path and novel:
+                with open(checkpoint_path, "a") as f:
+                    for p in novel:
+                        f.write(json.dumps({"question": p.question, "sql": p.sql}) + "\n")
+            if not got or not novel:
+                stall += 1
+                if stall >= 3:  # schema diversity exhausted — stop trying
+                    break
+            else:
+                stall = 0
         return pairs
 
     # ---- Step 2: explain real results ----------------------------------
@@ -358,17 +433,36 @@ class CGSimDataGenerator:
             f"SQL executed:\n{sql}\n\n"
             f"Real query results (JSON):\n{result_text}\n\n"
             "Write a concise, operational answer grounded ONLY in these results. "
-            "Cite concrete numbers. Do not speculate beyond the data. No SQL talk."
+            "Rules:\n"
+            "- Every number you state MUST come directly from the query results above. "
+            "Do NOT compute aggregates in your head — if the SQL already computed a sum "
+            "or average, read it from the results; do NOT re-sum rows yourself.\n"
+            "- When counting rows or items, count them from the data, then state the count. "
+            "Do not guess or estimate row counts.\n"
+            "- Use consistent units throughout (pick one: MB or MiB, not both).\n"
+            "- No SQL jargon, no speculation beyond the data."
         )
         resp = self.client.chat.completions.create(
             model=self.generator_model,
-            max_tokens=2000,
+            max_tokens=8000,
             messages=[
                 {"role": "system", "content": DOMAIN_PRIMER},
                 {"role": "user",   "content": prompt},
             ],
         )
-        return resp.choices[0].message.content.strip()
+        # LiteLLM-based gateways (e.g. SLAC) return errors as choices=None + resp.error
+        # instead of raising an exception.
+        if err := getattr(resp, "error", None):
+            raise RuntimeError(f"API error: {err.get('message', err)}")
+        if not resp.choices or resp.choices[0].message is None:
+            return ""
+        choice = resp.choices[0]
+        content = choice.message.content
+        if not content:
+            reason = getattr(choice, "finish_reason", "unknown")
+            print(f"  skip (explain): empty response (finish_reason={reason})", file=sys.stderr)
+            return ""
+        return content.strip()
 
     # ---- Step 3: judge quality ------------------------------------------
     def judge_example(self, question: str, sql: str, result_text: str, answer: str) -> JudgeVerdict:
@@ -380,8 +474,12 @@ class CGSimDataGenerator:
             "2. SQL: Correct SELECT using only documented EVENTS schema and json_extract; "
             "addresses the question; no hallucinated columns or keys.\n"
             "3. GROUNDING: Answer cites concrete numbers from the query results; "
-            "no fabricated figures.\n"
-            "4. ANSWER QUALITY: Clear, concise, operationally useful; no SQL jargon.\n\n"
+            "no fabricated figures. Allow minor rounding (≤5% relative error) on derived "
+            "figures such as ratios, percentages, and averages — only reject if the answer "
+            "states a figure that is clearly wrong or unrelated to the actual query results.\n"
+            "4. ANSWER QUALITY: Clear, concise, operationally useful; no SQL jargon. "
+            "Minor self-corrections or parenthetical clarifications are acceptable as long "
+            "as the final stated answer is correct.\n\n"
             f"Question:\n{question}\n\n"
             f"SQL:\n{sql}\n\n"
             f"Query results (JSON):\n{result_text}\n\n"
@@ -391,7 +489,7 @@ class CGSimDataGenerator:
         )
         resp = self.client.beta.chat.completions.parse(
             model=self.judge_model,
-            max_tokens=2048,
+            max_tokens=8000,
             messages=[
                 {"role": "system", "content": DOMAIN_PRIMER},
                 {"role": "user",   "content": prompt},
@@ -413,8 +511,13 @@ class CGSimDataGenerator:
             return None
 
         result_text = self._format_result(cols, rows)
-        answer = self.explain(pair.question, sql, result_text)
+        try:
+            answer = self.explain(pair.question, sql, result_text)
+        except Exception as e:
+            print(f"  skip (explain error): {e}", file=sys.stderr)
+            return None
         if not answer:
+            print("  skip (explain): empty response", file=sys.stderr)
             return None
 
         if self.use_judge:
@@ -446,19 +549,60 @@ class CGSimDataGenerator:
 
     # ---- Run ------------------------------------------------------------
     def run(self, n: int, output_path: str) -> int:
-        print(f"Proposing {n} question/SQL pairs with {self.generator_model}...")
-        pairs = self.propose_pairs(n)
-        print(f"Got {len(pairs)} pairs. Executing against {self.db_path} and explaining...")
+        ckpt_path = str(Path(self.db_path).parent / (Path(self.db_path).stem + ".ckpt.jsonl"))
+
+        # Resume from checkpoint if one exists from a prior interrupted run.
+        preloaded: list[QAPair] = []
+        if Path(ckpt_path).exists():
+            preloaded = self._load_checkpoint(ckpt_path)
+            print(f"[checkpoint] loaded {len(preloaded)} pairs from {ckpt_path}", flush=True)
+
+        if len(preloaded) >= n:
+            pairs = preloaded[:n]
+            print(f"[checkpoint] proposal complete ({len(pairs)} pairs) — skipping proposer", flush=True)
+        else:
+            need = n - len(preloaded)
+            print(
+                f"Proposing {need} more question/SQL pairs with {self.generator_model}"
+                + (f" ({len(preloaded)} already checkpointed)" if preloaded else "") + "...",
+                flush=True,
+            )
+            pairs = self.propose_pairs(n, checkpoint_path=ckpt_path, preloaded=preloaded)
+
+        # Skip pairs already written in a previous (partial) run.
+        out = Path(output_path)
+        done_questions: set[str] = set()
+        if out.exists() and out.stat().st_size > 0:
+            for line in out.open():
+                line = line.strip()
+                if not line:
+                    continue
+                ex = json.loads(line)
+                for m in ex.get("messages", []):
+                    if m.get("role") == "user" and isinstance(m.get("content"), str):
+                        done_questions.add(m["content"])
+                        break
+            if done_questions:
+                print(f"[checkpoint] skipping {len(done_questions)} already-written pairs", flush=True)
+
+        pending = [p for p in pairs if p.question not in done_questions]
+        print(f"Got {len(pairs)} pairs total; {len(pending)} to process. Executing and explaining...", flush=True)
 
         written = 0
-        out = Path(output_path)
-        with out.open("w") as f:
-            for i, pair in enumerate(pairs, 1):
-                print(f"[{i}/{len(pairs)}] {pair.question[:70]}")
+        with out.open("a") as f:
+            for i, pair in enumerate(pending, 1):
+                print(f"[{i}/{len(pending)}] {pair.question[:70]}")
                 row = self.generate_example(pair)
                 if row:
                     f.write(json.dumps(row, ensure_ascii=False) + "\n")
+                    f.flush()
                     written += 1
+
+        # Clean up checkpoint only after a full successful run.
+        if Path(ckpt_path).exists():
+            Path(ckpt_path).unlink()
+            print(f"[checkpoint] removed {ckpt_path}", flush=True)
+
         print(f"\nWrote {written} examples to {out}")
         return written
 

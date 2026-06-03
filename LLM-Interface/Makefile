@@ -21,6 +21,8 @@ PYTHON       ?= $(HOME)/.conda/envs/wf-seminar/bin/python3.10
 ACCOUNT      ?= m2616
 OUTPUTS_DIR  ?= $(PSCRATCH)/cgsim-outputs
 EXAMPLES_PER_SCENARIO ?= 100
+GENERATOR_MODEL       ?=
+JUDGE_MODEL           ?=
 
 # ---- Slurm job settings ----
 # Rubin topology (568 nodes) runs comfortably in ~5 min on a shared node.
@@ -105,17 +107,51 @@ datagen-submit: $(MANIFEST)
 	    --time         $(SLURM_TIME) \
 	    --cpus         $(SLURM_CPUS) \
 	    --mem-per-cpu  $(SLURM_MEM_PER_CPU) \
-	    --n           $(EXAMPLES_PER_SCENARIO)
+	    --n           $(EXAMPLES_PER_SCENARIO) \
+	    $(if $(GENERATOR_MODEL),--generator-model $(GENERATOR_MODEL),) \
+	    $(if $(JUDGE_MODEL),--judge-model $(JUDGE_MODEL),)
 
 # ---- Merge all JSONL into one training file ----
 
 MERGE_OUT ?= $(OUTPUTS_DIR)/askpanda_sft_cgsim_all.jsonl
 
+DEDUP ?= true
+
 .PHONY: merge
 merge:
-	@echo "Merging JSONL files from $(OUTPUTS_DIR) → $(MERGE_OUT)"
-	@cat $(OUTPUTS_DIR)/sft_*.jsonl > $(MERGE_OUT)
-	@echo "Total examples: $$(wc -l < $(MERGE_OUT))"
+	@$(PYTHON) $(CURDIR)/merge.py \
+	    --outputs-dir $(OUTPUTS_DIR) \
+	    --out         $(MERGE_OUT) \
+	    $(if $(filter false,$(DEDUP)),--no-dedup,)
+
+# ---- Ollama server + datagen ----
+
+OLLAMA_MODEL     ?= gpt-oss:120b
+OLLAMA_SERVER_JOB_FILE ?= /tmp/ollama_server_jobid.txt
+
+.PHONY: ollama-server
+ollama-server:
+	sbatch --parsable \
+	    $(HERE)scripts/ollama_server.sbatch \
+	    | tee $(OLLAMA_SERVER_JOB_FILE)
+	@echo "Ollama server job submitted. Wait for it to start before running datagen-submit-ollama."
+
+.PHONY: datagen-submit-ollama
+datagen-submit-ollama: $(MANIFEST)
+	$(PYTHON) $(HERE)datagen_submit.py \
+	    --manifest    $(MANIFEST) \
+	    --outputs-dir $(OUTPUTS_DIR) \
+	    --cgsim-bin   $(CGSIM_BIN) \
+	    --python      $(PYTHON) \
+	    --clients-dir $(CLIENTS_DIR) \
+	    --run-script  $(HERE)datagen_run_ollama.sh \
+	    --account      $(ACCOUNT) \
+	    --qos          $(SLURM_QOS) \
+	    --constraint   $(SLURM_CONSTRAINT) \
+	    --time         $(SLURM_TIME) \
+	    --cpus         $(SLURM_CPUS) \
+	    --mem-per-cpu  $(SLURM_MEM_PER_CPU) \
+	    --n           $(EXAMPLES_PER_SCENARIO)
 
 # ---- Cleanup ----
 

@@ -22,8 +22,10 @@ def main() -> None:
     ap.add_argument("--time",        default="00:45:00")
     ap.add_argument("--cpus",        default="4")
     ap.add_argument("--mem-per-cpu", default="1900")
-    ap.add_argument("--n",           default="100", help="Examples per scenario")
-    ap.add_argument("--scenarios",   nargs="+", help="Subset of scenarios (default: all)")
+    ap.add_argument("--n",               default="100", help="Examples per scenario")
+    ap.add_argument("--generator-model", default="", help="Override generator model")
+    ap.add_argument("--judge-model",     default="", help="Override judge model")
+    ap.add_argument("--scenarios",       nargs="+", help="Subset of scenarios (default: all)")
     args = ap.parse_args()
 
     manifest = json.loads(Path(args.manifest).read_text())
@@ -43,6 +45,8 @@ def main() -> None:
             f"bash {args.run_script} {name} {config} {db}"
             f" {args.n} {args.outputs_dir} {args.cgsim_bin}"
             f" {args.python} {args.clients_dir}"
+            f" {getattr(args, 'generator_model', '')}"
+            f" {getattr(args, 'judge_model', '')}"
         )
         cmd = [
             "sbatch",
