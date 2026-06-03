@@ -167,11 +167,11 @@ JOB_TYPES = [
         "name": "Prompt_ISR",
         "site_weights": [0.85, 0.10, 0.03, 0.02],
         "cores": 1,
-        "cpu_time_mean": 30,     # seconds
-        "cpu_time_std": 10,
+        "cpu_time_mean": 90,     # seconds (60–120s per CCD on real Rubin hardware)
+        "cpu_time_std": 20,
         "n_input_files_range": (1, 1),
-        "input_file_size_mean": 42 * 10**6,   # 42 MB per CCD
-        "input_file_size_std":  5  * 10**6,
+        "input_file_size_mean": 80 * 10**6,   # 80 MB per raw CCD (lossless compressed FITS)
+        "input_file_size_std":  8  * 10**6,
         "n_output_files_range": (1, 2),
         "output_size_fraction": 0.9,
     },
@@ -179,8 +179,8 @@ JOB_TYPES = [
         "name": "SingleFrame_Cal",
         "site_weights": [0.05, 0.70, 0.15, 0.10],
         "cores": 4,
-        "cpu_time_mean": 120,
-        "cpu_time_std": 40,
+        "cpu_time_mean": 420,
+        "cpu_time_std": 100,
         "n_input_files_range": (1, 3),
         "input_file_size_mean": 100 * 10**6,
         "input_file_size_std":  20  * 10**6,
@@ -191,8 +191,8 @@ JOB_TYPES = [
         "name": "Coadd",
         "site_weights": [0.02, 0.55, 0.28, 0.15],
         "cores": 8,
-        "cpu_time_mean": 600,
-        "cpu_time_std": 200,
+        "cpu_time_mean": 3600,
+        "cpu_time_std": 1000,
         "n_input_files_range": (10, 50),
         "input_file_size_mean": 100 * 10**6,
         "input_file_size_std":  20  * 10**6,
@@ -203,8 +203,8 @@ JOB_TYPES = [
         "name": "DiffImaging",
         "site_weights": [0.05, 0.65, 0.20, 0.10],
         "cores": 4,
-        "cpu_time_mean": 180,
-        "cpu_time_std": 60,
+        "cpu_time_mean": 600,
+        "cpu_time_std": 150,
         "n_input_files_range": (2, 4),
         "input_file_size_mean": 100 * 10**6,
         "input_file_size_std":  20  * 10**6,
@@ -215,8 +215,8 @@ JOB_TYPES = [
         "name": "ForcedPhotom",
         "site_weights": [0.02, 0.58, 0.25, 0.15],
         "cores": 8,
-        "cpu_time_mean": 300,
-        "cpu_time_std": 100,
+        "cpu_time_mean": 900,
+        "cpu_time_std": 250,
         "n_input_files_range": (5, 20),
         "input_file_size_mean": 50 * 10**6,
         "input_file_size_std":  10 * 10**6,
@@ -337,7 +337,7 @@ def build_jobs_csv(n_jobs=500):
 
 def main():
     # Generate jobs first to collect which files need to be registered at each site
-    jobs, files_by_site = build_jobs_csv(n_jobs=500)
+    jobs, files_by_site = build_jobs_csv(n_jobs=1000)
 
     # Build site_info with pre-registered input files
     site_info = build_site_info()

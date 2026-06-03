@@ -110,9 +110,9 @@ BASELINE_JOB_TYPES = [
         "name": "Prompt_ISR",
         "site_weights": [0.85, 0.10, 0.03, 0.02],
         "cores": 1,
-        "cpu_time_mean": 30,  "cpu_time_std": 10,
+        "cpu_time_mean": 90,  "cpu_time_std": 20,
         "n_input_files_range": (1, 1),
-        "input_file_size_mean": 42 * 10**6, "input_file_size_std": 5 * 10**6,
+        "input_file_size_mean": 80 * 10**6, "input_file_size_std": 8 * 10**6,
         "n_output_files_range": (1, 2),
         "output_size_fraction": 0.9,
     },
@@ -120,7 +120,7 @@ BASELINE_JOB_TYPES = [
         "name": "SingleFrame_Cal",
         "site_weights": [0.05, 0.70, 0.15, 0.10],
         "cores": 4,
-        "cpu_time_mean": 120, "cpu_time_std": 40,
+        "cpu_time_mean": 420, "cpu_time_std": 100,
         "n_input_files_range": (1, 3),
         "input_file_size_mean": 100 * 10**6, "input_file_size_std": 20 * 10**6,
         "n_output_files_range": (1, 3),
@@ -130,7 +130,7 @@ BASELINE_JOB_TYPES = [
         "name": "Coadd",
         "site_weights": [0.02, 0.55, 0.28, 0.15],
         "cores": 8,
-        "cpu_time_mean": 600, "cpu_time_std": 200,
+        "cpu_time_mean": 3600, "cpu_time_std": 1000,
         "n_input_files_range": (10, 50),
         "input_file_size_mean": 100 * 10**6, "input_file_size_std": 20 * 10**6,
         "n_output_files_range": (1, 4),
@@ -140,7 +140,7 @@ BASELINE_JOB_TYPES = [
         "name": "DiffImaging",
         "site_weights": [0.05, 0.65, 0.20, 0.10],
         "cores": 4,
-        "cpu_time_mean": 180, "cpu_time_std": 60,
+        "cpu_time_mean": 600, "cpu_time_std": 150,
         "n_input_files_range": (2, 4),
         "input_file_size_mean": 100 * 10**6, "input_file_size_std": 20 * 10**6,
         "n_output_files_range": (1, 2),
@@ -150,7 +150,7 @@ BASELINE_JOB_TYPES = [
         "name": "ForcedPhotom",
         "site_weights": [0.02, 0.58, 0.25, 0.15],
         "cores": 8,
-        "cpu_time_mean": 300, "cpu_time_std": 100,
+        "cpu_time_mean": 900, "cpu_time_std": 250,
         "n_input_files_range": (5, 20),
         "input_file_size_mean": 50 * 10**6, "input_file_size_std": 10 * 10**6,
         "n_output_files_range": (1, 3),
@@ -194,7 +194,7 @@ class ScenarioSpec:
     description: str
     site_overrides: dict[str, SiteOverride] = field(default_factory=dict)
     conn_overrides: dict[str, ConnOverride] = field(default_factory=dict)
-    num_jobs: int = 500
+    num_jobs: int = 1000
     job_type_weights: list[float] | None = None
 
 
@@ -246,6 +246,16 @@ SCENARIOS: dict[str, ScenarioSpec] = {
         description="Heavy Coadd/ForcedPhotom burst — DRP reprocessing campaign",
         # Shift weight toward compute-heavy jobs
         job_type_weights=[0.10, 0.15, 0.45, 0.15, 0.15],
+    ),
+    "high_load": ScenarioSpec(
+        description="Grid oversubscribed at 20% capacity — resource contention and scheduling retries",
+        site_overrides={
+            "Base": SiteOverride(cpu_units_multiplier=0.2),
+            "USDF": SiteOverride(cpu_units_multiplier=0.2),
+            "FrDF": SiteOverride(cpu_units_multiplier=0.2),
+            "UKDF": SiteOverride(cpu_units_multiplier=0.2),
+        },
+        num_jobs=1500,
     ),
 }
 
