@@ -138,6 +138,10 @@ ANALYSIS RULES
   OR METADATA.destination_site = <site>.
 - Extract metadata with json_extract(METADATA, '$.<key>').
 - Never invent columns or JSON keys; never modify the database; one statement only.
+- size, bandwidth, and disk_read/write_bw values are in bytes or bytes/s. Do NOT
+  propose questions that ask for MiB, GiB, or MiB/s — ask for bytes or seconds
+  instead, or compute the ratio directly in raw units. This avoids unit-conversion
+  errors in the SQL (wrong divisor: 1024 vs 1048576).
 """
 
 # ============================================================
