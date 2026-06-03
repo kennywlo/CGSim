@@ -136,7 +136,7 @@ CONNECTIONS = {
     "Base:FrDF":   {"bandwidth": "10Gbps",  "latency": "160ms"},
     "USDF:FrDF":   {"bandwidth": "10Gbps",  "latency": "130ms"},
     "USDF:UKDF":   {"bandwidth": "10Gbps",  "latency": "120ms"},
-    "FrDF:UKDF":   {"bandwidth": "1Gbps",   "latency": "20ms"},
+    "FrDF:UKDF":   {"bandwidth": "10Gbps",  "latency": "20ms"},
     # Indirect paths — SimGrid FullZone requires explicit pairwise routes.
     # Bandwidth = bottleneck of physical path; latency = sum of hops.
     "Summit:USDF": {"bandwidth": "100Gbps", "latency": "96ms"},   # via Base

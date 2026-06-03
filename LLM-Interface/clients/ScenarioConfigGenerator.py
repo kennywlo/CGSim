@@ -98,7 +98,7 @@ BASELINE_CONNECTIONS: dict[str, dict[str, str]] = {
     "Base:FrDF":    {"bandwidth": "10Gbps",  "latency": "160ms"},
     "USDF:FrDF":    {"bandwidth": "10Gbps",  "latency": "130ms"},
     "USDF:UKDF":    {"bandwidth": "10Gbps",  "latency": "120ms"},
-    "FrDF:UKDF":    {"bandwidth": "1Gbps",   "latency": "20ms"},
+    "FrDF:UKDF":    {"bandwidth": "10Gbps",  "latency": "20ms"},
     "Summit:USDF":  {"bandwidth": "100Gbps", "latency": "96ms"},
     "Summit:FrDF":  {"bandwidth": "10Gbps",  "latency": "161ms"},
     "Summit:UKDF":  {"bandwidth": "10Gbps",  "latency": "216ms"},

@@ -124,7 +124,7 @@ Five-site Rubin network (Summit → Base → {USDF, FrDF, UKDF}):
 | UKDF | Additional processing (RAL/IRIS) | 60 | 32 | 1 PB |
 
 Key links: Summit↔Base 100 Gbps/1 ms · Base↔USDF 100 Gbps/95 ms ·
-transatlantic links 10 Gbps · FrDF↔UKDF 1 Gbps.
+transatlantic links 10 Gbps · FrDF↔UKDF 10 Gbps (WLCG Tier-1 standard via GÉANT).
 
 ---
 
