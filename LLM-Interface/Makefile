@@ -113,7 +113,8 @@ datagen-submit: $(MANIFEST)
 
 # ---- Merge all JSONL into one training file ----
 
-MERGE_OUT ?= $(OUTPUTS_DIR)/askpanda_sft_cgsim_all.jsonl
+MERGE_DATE ?= $(shell date +%Y%m%d)
+MERGE_OUT  ?= $(HERE)data/askpanda_sft_cgsim_v$(MERGE_DATE).jsonl
 
 DEDUP ?= true
 
