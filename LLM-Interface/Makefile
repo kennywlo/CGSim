@@ -27,7 +27,7 @@ JUDGE_MODEL           ?=
 # ---- Slurm job settings ----
 # Rubin topology (568 nodes) runs comfortably in ~5 min on a shared node.
 # CGSimDataGenerator makes API calls so it needs outbound HTTPS (Perlmutter allows this).
-SLURM_TIME       ?= 00:45:00
+SLURM_TIME       ?= 01:00:00
 SLURM_NTASKS     ?= 1
 SLURM_CPUS       ?= 4
 SLURM_MEM_PER_CPU ?= 1900
