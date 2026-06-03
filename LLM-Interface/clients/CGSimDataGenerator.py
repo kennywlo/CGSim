@@ -189,6 +189,20 @@ class SQLValidator:
                 raise ValueError(f"Unknown JSON key: {key}")
 
 
+def sanitize_question(q: str) -> str:
+    """Strip emoji/numbering artifacts left by the proposer model."""
+    # Keycap sequences: digit + optional variation selector + combining enclosing keycap
+    q = re.sub(r"\d️?⃣\s*", "", q)
+    # Remaining emoji (misc symbols, pictographs, transport, variation selectors, etc.)
+    q = re.sub(
+        r"[\U0001F300-\U0001F9FF☀-➿︀-️⃐-⃿]+",
+        "",
+        q,
+        flags=re.UNICODE,
+    )
+    return " ".join(q.split())
+
+
 def sanitize_sql(sql: str) -> str:
     sql = re.sub(r"```sql|```", "", sql, flags=re.IGNORECASE).strip()
     sql = sql.rstrip(";")
@@ -484,12 +498,16 @@ class CGSimDataGenerator:
             "them, and do not reject unit-label choices (MB vs MiB, bps vs bytes/s) unless the "
             "numeric conversion itself is wrong by more than 5%.\n\n"
             "4. ANSWER QUALITY: Clear, concise, operationally useful; no SQL jargon. Minor "
-            "self-corrections are fine as long as the final stated answer is correct.\n\n"
+            "self-corrections are fine as long as the final stated answer is correct.\n"
+            "5. SELF-CONSISTENCY: If the query returned rows but the answer declares the "
+            "results invalid, meaningless, or uninterpretable — reject. An answer that "
+            "explains a null/empty result is fine; an answer that reports numbers while "
+            "calling them wrong is not.\n\n"
             f"Question:\n{question}\n\n"
             f"SQL:\n{sql}\n\n"
             f"Query results (JSON):\n{result_text}\n\n"
             f"Answer:\n{answer}\n\n"
-            "Set keep=true only if ALL four criteria pass. "
+            "Set keep=true only if ALL five criteria pass. "
             "Set keep=false and state which criterion failed and why in ≤40 words."
         )
         resp = self.client.beta.chat.completions.parse(
@@ -505,6 +523,7 @@ class CGSimDataGenerator:
 
     # ---- Build one SFT row ---------------------------------------------
     def generate_example(self, pair: QAPair) -> dict[str, Any] | None:
+        question = sanitize_question(pair.question)
         sql = sanitize_sql(pair.sql)
         try:
             cols, rows = self._execute_sql(sql)
@@ -517,7 +536,7 @@ class CGSimDataGenerator:
 
         result_text = self._format_result(cols, rows)
         try:
-            answer = self.explain(pair.question, sql, result_text)
+            answer = self.explain(question, sql, result_text)
         except Exception as e:
             print(f"  skip (explain error): {e}", file=sys.stderr)
             return None
@@ -526,14 +545,14 @@ class CGSimDataGenerator:
             return None
 
         if self.use_judge:
-            verdict = self.judge_example(pair.question, sql, result_text, answer)
+            verdict = self.judge_example(question, sql, result_text, answer)
             if not verdict.keep:
                 print(f"  skip (judge): {verdict.reason}", file=sys.stderr)
                 return None
 
         messages = [
             {"role": "system", "content": SFT_SYSTEM_PROMPT},
-            {"role": "user", "content": pair.question},
+            {"role": "user", "content": question},
             {
                 "role": "assistant",
                 "content": None,
