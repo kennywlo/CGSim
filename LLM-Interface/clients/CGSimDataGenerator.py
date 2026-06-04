@@ -401,7 +401,7 @@ class CGSimDataGenerator:
     def propose_pairs(
         self,
         n: int,
-        batch_size: int = 10,
+        batch_size: int = 5,
         checkpoint_path: str | None = None,
         preloaded: list[QAPair] | None = None,
     ) -> list[QAPair]:
@@ -413,19 +413,30 @@ class CGSimDataGenerator:
         seen_questions: list[str] = [p.question for p in pairs]
         remaining = n - len(pairs)
         stall = 0  # consecutive batches that yielded no novel questions
+        token_limit_hits = 0  # consecutive token-limit failures at minimum batch size
         current_batch = batch_size
         while remaining > 0:
             try:
                 got = self._propose_batch(min(remaining, current_batch), seen_questions=seen_questions)
                 current_batch = batch_size  # reset after success
+                token_limit_hits = 0
             except Exception as e:
                 if "length" in str(e).lower() or "LengthFinishReason" in type(e).__name__:
+                    if current_batch <= 1:
+                        token_limit_hits += 1
+                        print(f"  [warn] batch_size=1 still hits limit ({token_limit_hits}/5) — skipping batch", flush=True)
+                        if token_limit_hits >= 5:
+                            print("  [warn] too many token-limit failures at batch_size=1 — stopping proposals early", flush=True)
+                            break
+                        current_batch = batch_size  # reset and try full size again next round
+                        continue
                     current_batch = max(1, current_batch // 2)
                     print(f"  [warn] token limit hit, retrying with batch_size={current_batch}", flush=True)
-                    if current_batch == 1:
-                        # Can't go smaller; skip this iteration to avoid infinite loop
-                        print("  [warn] batch_size=1 still hits limit — skipping batch", flush=True)
-                        break
+                    continue
+                if isinstance(e, TypeError) and "NoneType" in str(e):
+                    # Gateway returned malformed response (choices=None) — transient outage, retry
+                    print(f"  [warn] gateway returned null response, retrying in 15s...", flush=True)
+                    import time; time.sleep(15)
                     continue
                 raise
             novel = [p for p in got if p.question not in seen_questions]
@@ -487,7 +498,7 @@ class CGSimDataGenerator:
         prompt = (
             "You are a quality-filter for an SFT dataset that teaches a model to answer "
             "ATLAS Grid computing questions by querying a simulation database.\n\n"
-            "Evaluate the following example on ALL four criteria:\n\n"
+            "Evaluate the following example on ALL six criteria:\n\n"
             "1. QUESTION: Non-trivial operational question (not just a bare row count).\n\n"
             "2. SQL: Uses only documented EVENTS columns and json_extract keys; no hallucinated "
             "schema. The SQL must correctly answer the question AS LITERALLY STATED — do NOT "
@@ -507,11 +518,17 @@ class CGSimDataGenerator:
             "results invalid, meaningless, or uninterpretable — reject. An answer that "
             "explains a null/empty result is fine; an answer that reports numbers while "
             "calling them wrong is not.\n\n"
+            "6. INFORMATIVE RESULT: The query result must contain meaningful variation or "
+            "non-trivial values. Reject if every numeric value in the result is identical "
+            "(e.g. all 0.0, all the same constant) or if the answer's main finding is that "
+            "all measured metrics are zero or uniform across all rows. A result showing all "
+            "jobs with status 'finished' is acceptable; a result where every metric value is "
+            "exactly 0.0 or identical across every row is not informative — reject it.\n\n"
             f"Question:\n{question}\n\n"
             f"SQL:\n{sql}\n\n"
             f"Query results (JSON):\n{result_text}\n\n"
             f"Answer:\n{answer}\n\n"
-            "Set keep=true only if ALL five criteria pass. "
+            "Set keep=true only if ALL six criteria pass. "
             "Set keep=false and state which criterion failed and why in ≤40 words."
         )
         resp = self.client.beta.chat.completions.parse(

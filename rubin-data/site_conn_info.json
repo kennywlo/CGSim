@@ -20,7 +20,7 @@
     "latency": "120ms"
   },
   "FrDF:UKDF": {
-    "bandwidth": "1Gbps",
+    "bandwidth": "10Gbps",
     "latency": "20ms"
   },
   "Summit:USDF": {

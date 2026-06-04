@@ -109,7 +109,8 @@ datagen-submit: $(MANIFEST)
 	    --mem-per-cpu  $(SLURM_MEM_PER_CPU) \
 	    --n           $(EXAMPLES_PER_SCENARIO) \
 	    $(if $(GENERATOR_MODEL),--generator-model $(GENERATOR_MODEL),) \
-	    $(if $(JUDGE_MODEL),--judge-model $(JUDGE_MODEL),)
+	    $(if $(JUDGE_MODEL),--judge-model $(JUDGE_MODEL),) \
+	    $(if $(SCENARIOS),--scenarios $(SCENARIOS),)
 
 # ---- Merge all JSONL into one training file ----
 
