@@ -299,6 +299,24 @@ multiple job waves. The `high_coadd_burst` scenario was the most expensive, requ
 due to an 87% larger event database (53K vs 28K rows) that extends both simulation runtime
 (~40 min vs ~5 min) and LLM context pressure during generation.
 
+**Root causes of the 12.5-hour wall-clock span:**
+
+1. **`high_coadd_burst` DB size** — at 53K rows (87% larger than the ~28K-row average), this
+   scenario's CGSim simulation alone takes ~40 min vs. ~5 min for others. The larger DB also
+   increases Executor query time and LLM context pressure per Proposer batch. It required 3
+   job waves to complete, each restarting CGSim from scratch before the checkpoint could resume
+   generation.
+
+2. **Perlmutter 2h wall limit forcing multi-wave reruns** — each resubmitted wave pays the
+   full job startup and CGSim initialization overhead again. The checkpoint ensures no work is
+   lost, but does not reduce total compute — it only spreads it across waves. Any scenario
+   requiring more than ~90 min of generation time spills into a second wave.
+
+3. **Serial LLM calls per example** — the Proposer, Explainer, and Judge are invoked
+   sequentially for each example with no batching at the explain/judge stage. Each of the
+   1,154 examples makes at least 3 serial SLAC AI API calls, and gateway null responses
+   (transient outages) add 15-second retry sleeps that compound across the run.
+
 **Checkpoint/resume mechanics** — the pipeline maintains two save points per scenario:
 
 1. **Proposal checkpoint** (`.ckpt.jsonl` alongside the DB) — each accepted `(question, SQL)`
