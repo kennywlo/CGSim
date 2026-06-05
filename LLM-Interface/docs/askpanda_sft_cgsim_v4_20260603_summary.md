@@ -5,6 +5,40 @@
 
 ---
 
+## Research context
+
+This dataset is part of the **AskPanDA Next-Phase Research** program
+(*Simulation-Grounded Training for Scientific Workflow Failure Diagnosis*, SLAC/REDWOOD,
+DOE ASCR), targeting SC27/PMBS as the follow-on to the SC26 paper (pap440).
+
+**SC26 baseline (pap440):** A GPT-OSS-20B model fine-tuned on ~500 manually curated SFT
+samples achieves 85% diagnostic accuracy on a 48-scenario benchmark, outperforming Claude
+Sonnet 4 (71%) and the untuned base model (25%). That result demonstrates passive distillation
+of operational reasoning is feasible — but it is limited by manual curation cost, a fixed
+training distribution, and purely correlational (non-causal) reasoning.
+
+**Next-phase architecture** addresses these limits in three stages:
+
+| Stage | CGSim role | LLM activity |
+|---|---|---|
+| 1 — Schema audit | Output audited against OpenSearch PanDA schema; translation layer or fork built | — |
+| 2 — FastMCP wrapping | Exposed as MCP server (`run_simulation`, `verify_diagnosis`, `generate_counterfactual`) | Interactive tool calls during training |
+| 3 — SFT at scale *(this dataset)* | Generates synthetic job records across diverse failure scenarios | Learns failure pattern recognition at scale |
+| 4 — GRPO training | Acts as ground-truth verifier for candidate diagnoses | Learns causal reasoning; rewarded for simulator-validated diagnoses |
+| 5 — Benchmark expansion | Generates novel OOD scenarios, cascade failures, multi-hop causal chains | Evaluated on expanded benchmark |
+
+**v4 is Stage 3 — a validation-scale run** (1,154 examples; target for full SFT is 5K–25K).
+It establishes the datagen pipeline, confirms simulation fidelity for Rubin Operations, and
+surfaces the schema and tooling gaps (see Future Directions) that Stage 1 must close before
+scaling.
+
+**Deployment-time independence:** CGSim is a *training-time dependency only*. The GRPO phase
+(Stage 4) crystallizes simulator-derived causal reasoning into model weights. In production,
+AskPanDA operates autonomously against real operational data (OpenSearch PanDA index) with no
+CGSim dependency — the query tool at inference is the live operational DB, not the simulator.
+
+---
+
 ## What it is
 
 Supervised fine-tuning data for teaching a model to answer Rubin Operations operational
