@@ -190,6 +190,89 @@ dataset the 9 scenarios × 6 categories form a **54-cell matrix**, each cell con
 
 ---
 
+## Future directions
+
+### Critical gaps: simulation vs. Rubin production
+
+**1. Query interface (blocking)**
+The model is trained on SQLite SQL with `json_extract`. Production Rubin Operations uses
+OpenSearch, which has a different query language and field access model. The learned SQL patterns
+will not transfer without either a translation layer at inference time or a retraining run
+against OpenSearch-native queries. This is the most blocking gap before production deployment.
+
+**2. Schema and field names (blocking)**
+The CGSim EVENTS schema is a simulation abstraction. Real Rubin/PanDA operational data in
+OpenSearch will have different index structures, field names, and event taxonomy. A model trained
+on CGSim field names (e.g. `json_extract(METADATA, '$.site')`) will confidently generate queries
+using wrong field names against a real index. Closing this gap requires either schema remapping
+in the system prompt or a new datagen run against an OpenSearch-compatible schema.
+
+**3. DAG-aware workflow modeling (high priority)**
+CGSim currently models jobs as independent units. Real Rubin workflows are DAGs: ISR →
+characterizeImage → calibrate → makeWarp → assembleCoadd → detectMeasure, with each step
+dependent on the completion of upstream tasks. This gap means the current dataset cannot train
+the model to answer workflow-level operational questions such as:
+- "Which pipeline step is the bottleneck in tonight's DRP run?"
+- "How many workflows are blocked waiting on step X?"
+- "How far did this workflow progress before failing?"
+
+Closing this gap requires DAG-level events and metadata in the EVENTS schema (see Rubin plugin
+section below).
+
+**4. Workload realism (medium priority)**
+CGSim uses synthetic job distributions. Real Rubin operations run structured workload cadences —
+nightly prompt processing, Data Release Processing (DRP), and forced photometry — each with
+distinct job profiles, I/O footprints, and scheduling patterns. Scenarios calibrated to these
+cadences would produce more operationally representative training examples.
+
+**5. Site topology calibration (medium priority)**
+Simulated site parameters (bandwidth, CPU capacity, storage) use approximate values. Calibrating
+these to real USDF, Base, FrDF, UKDF, and Summit specifications would ensure the model learns
+metric ranges that match real operational observations.
+
+**6. Scenario coverage (ongoing)**
+The 9 current scenarios cover archetypal failure modes but were not derived from real Rubin
+operational incidents. Future scenario sets should be informed by actual event history and
+on-call runbooks to ensure the training distribution covers the failure modes operators
+actually encounter.
+
+---
+
+### Rubin plugin for CGSim (collaboration with Raaees)
+
+A Rubin-specific CGSim plugin is under discussion to address gaps 3–5 above. The plugin would
+extend CGSim with Rubin pipeline semantics and emit EVENTS-compatible output that the existing
+datagen pipeline can consume without modification.
+
+**What the plugin needs to produce — EVENTS schema extensions:**
+
+| New field / event | Purpose |
+|---|---|
+| `workflow_id` on job events | Groups individual tasks into their parent workflow instance |
+| `pipeline_stage` on job events | Labels the task's position in the Rubin pipeline (e.g. `isr`, `makeWarp`, `assembleCoadd`) |
+| `upstream_task_ids` on job events | Lists the task IDs that must complete before this task can start |
+| `dag_depth` on job events | Integer depth in the DAG, enabling bottleneck-by-stage queries |
+| `WorkflowTransition` event type | Records workflow-level state changes: queued, running, blocked, failed, completed |
+
+**What the plugin needs from the Rubin side:**
+
+- Butler pipeline graph / task connection definitions — the authoritative DAG structure per
+  pipeline type (prompt, DRP, forced photometry)
+- Per-task job profiles — typical flops, I/O read/write footprint, and duration distributions
+  for each pipeline step
+- Real site topology specs — actual bandwidth, CPU, and storage capacities for USDF, Base,
+  FrDF, UKDF, and Summit to replace the current approximate simulation parameters
+- Real workload cadences — job submission rates and batch sizes for nightly vs. DRP vs.
+  prompt processing runs
+
+**What this doc provides as a plugin spec:**
+The current EVENTS schema (see `EVENT_SCHEMA` table in the Pipeline section) defines the
+contract the datagen pipeline consumes. The plugin must emit events conforming to this schema,
+extended with the DAG fields above. The existing Proposer prompt categories and Judge criteria
+apply unchanged to any compliant EVENTS database.
+
+---
+
 ## Compute resources (Perlmutter, NERSC)
 
 | | |
