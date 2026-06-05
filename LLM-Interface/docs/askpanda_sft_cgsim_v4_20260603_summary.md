@@ -62,7 +62,12 @@ table — the substrate the datagen pipeline queries.
 
 ## Pipeline: proposer → executor → judge
 
-**Proposer** — Claude Sonnet 4.6  
+All LLM calls (Proposer, Explainer, Judge) are made to **Claude Sonnet 4.6 via the SLAC AI
+gateway**. Each scenario runs as an independent process with its own CGSim instance and
+establishes its own connection to the SLAC AI API — the 9 jobs run fully in parallel with no
+shared state between them.
+
+**Proposer** — Claude Sonnet 4.6 via SLAC AI  
 Generates diverse `(question, SQL)` pairs against the EVENTS schema. Given the schema and a list
 of already-seen questions to avoid, it proposes batches covering per-site performance, file
 transfer bottlenecks, disk I/O, job duration/retries, CPU/storage utilization, and cross-site
@@ -114,11 +119,11 @@ novel questions the proposer concludes the schema diversity is exhausted and sto
 Runs each proposed SQL against the actual simulated SQLite DB. Filters empty results and
 non-SELECT queries before proceeding.
 
-**Explainer** — Claude Sonnet 4.6  
+**Explainer** — Claude Sonnet 4.6 via SLAC AI  
 Given the question, SQL, and real query results, writes a concise operational answer grounded
 strictly in the returned data. Instructed not to recompute aggregates or hallucinate numbers.
 
-**Judge** — Claude Sonnet 4.6  
+**Judge** — Claude Sonnet 4.6 via SLAC AI  
 Filters each `(question, SQL, result, answer)` tuple on 6 criteria before it enters the dataset.
 Scoring is **all-or-nothing**: `keep=true` only if every criterion passes; a single failure
 rejects the example. The Judge returns a structured verdict with a ≤40-word reason when
@@ -150,9 +155,10 @@ rejecting, identifying which criterion failed.
 
 ### Scenarios (9)
 
-Each scenario is an independent CGSim run producing its own SQLite EVENTS DB. Together they
-cover the four failure-mode classes: normal operations, single-site failures, network
-bottlenecks, and burst workloads.
+Each scenario is an independent CGSim instance producing its own SQLite EVENTS DB and
+connecting to the SLAC AI gateway separately. The 9 jobs run in parallel on Perlmutter with
+no shared state. Together they cover the four failure-mode classes: normal operations,
+single-site failures, network bottlenecks, and burst workloads.
 
 | Scenario | Description | Examples |
 |---|---|---|
@@ -341,7 +347,11 @@ each batch, allowing interrupted Perlmutter jobs to restart and continue from wh
 without regenerating already-accepted examples.
 
 **Claude Sonnet 4.6** — The Anthropic model used for the Proposer, Explainer, and Judge roles
-in the datagen pipeline.
+in the datagen pipeline, accessed via the SLAC AI gateway.
+
+**SLAC AI** — The AI API gateway operated by SLAC National Accelerator Laboratory, used here
+to route all Claude Sonnet 4.6 calls during datagen. Each scenario's process holds its own
+independent connection to this gateway.
 
 **Coadd** — Co-addition: the process of combining multiple astronomical exposures into a single
 deeper image. Coadd jobs are among the most compute-intensive in the Rubin processing pipeline.
