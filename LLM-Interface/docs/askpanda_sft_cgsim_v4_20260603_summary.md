@@ -548,6 +548,12 @@ hallucinate numbers.
 
 **FrDF** — French Data Facility. One of the five simulated Rubin Observatory grid sites.
 
+**GRPO (Group Relative Policy Optimization)** — A reinforcement learning training technique
+used in Stage 4 of the AskPanDA next-phase architecture. The model proposes diagnoses and is
+rewarded based on validation by CGSim as a ground-truth verifier, eliminating the need for
+human annotation per training sample. GRPO is what crystallizes simulator-derived causal
+reasoning into model weights, enabling deployment-time independence from CGSim.
+
 **Grounding** — The requirement that every number in an answer is derivable from the actual
 query results (within ≤5% relative tolerance). Ungrounded answers are rejected by the Judge.
 
