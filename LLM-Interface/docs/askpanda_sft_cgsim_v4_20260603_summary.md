@@ -7,7 +7,7 @@
 
 ## What it is
 
-Supervised fine-tuning data for teaching a model to answer ATLAS Grid computing operational
+Supervised fine-tuning data for teaching a model to answer Rubin Operations operational
 questions by querying a simulation database. Each example is a `(question, SQL, result, answer)`
 tuple grounded in simulation EVENTS data produced by CGSim (a SimGrid-based Rubin Observatory
 grid simulator).
@@ -315,8 +315,9 @@ Each record is a single-line JSON object with two fields:
 
 ## Glossary
 
-**AskPanDA** — The name of the assistant being trained. In production it answers ATLAS Grid
-computing and PanDA workload management questions by querying operational data via tool calls.
+**AskPanDA** — The name of the assistant being trained. It is dual-purpose, covering both ATLAS
+Grid/PanDA workload management and Rubin Operations questions. This CGSim dataset targets the
+Rubin Operations use case specifically.
 
 **ATLAS Grid** — The distributed computing infrastructure used by the ATLAS experiment at CERN
 to process particle physics data. Jobs run across dozens of sites worldwide coordinated by the
