@@ -217,7 +217,7 @@ the model to answer workflow-level operational questions such as:
 - "How far did this workflow progress before failing?"
 
 Closing this gap requires DAG-level events and metadata in the EVENTS schema (see Rubin plugin
-section below).
+section below — addressed by Raees's workload scheduling plugin, step 3).
 
 **4. Workload realism (medium priority)**
 CGSim uses synthetic job distributions. Real Rubin operations run structured workload cadences —
@@ -238,38 +238,47 @@ actually encounter.
 
 ---
 
-### Rubin plugin for CGSim (collaboration with Raaees)
+### Rubin plugin for CGSim (collaboration with Raees)
 
-A Rubin-specific CGSim plugin is under discussion to address gaps 3–5 above. The plugin would
-extend CGSim with Rubin pipeline semantics and emit EVENTS-compatible output that the existing
-datagen pipeline can consume without modification.
+A Rubin-specific CGSim plugin is under development by Raees to address gaps 3–5 above. The
+plugin will extend CGSim with Rubin pipeline semantics and emit output conforming to the
+OpenSearch PanDA schema, making the simulation directly compatible with both the AskPanDA
+production inference stack and the datagen pipeline.
 
-**What the plugin needs to produce — EVENTS schema extensions:**
+**Raees's development plan:**
 
-| New field / event | Purpose |
-|---|---|
-| `workflow_id` on job events | Groups individual tasks into their parent workflow instance |
-| `pipeline_stage` on job events | Labels the task's position in the Rubin pipeline (e.g. `isr`, `makeWarp`, `assembleCoadd`) |
-| `upstream_task_ids` on job events | Lists the task IDs that must complete before this task can start |
-| `dag_depth` on job events | Integer depth in the DAG, enabling bottleneck-by-stage queries |
-| `WorkflowTransition` event type | Records workflow-level state changes: queued, running, blocked, failed, completed |
+1. **Form the site topology** — model the actual USDF, Base, FrDF, UKDF, and Summit site
+   specifications (bandwidth, CPU, storage) in CGSim to replace the current approximate values.
 
-**What the plugin needs from the Rubin side:**
+2. **Get historical workload information** — source real Rubin job history to derive per-task
+   profiles (flops, I/O footprint, duration distributions) and submission cadences for prompt,
+   DRP, and forced photometry pipelines.
 
-- Butler pipeline graph / task connection definitions — the authoritative DAG structure per
-  pipeline type (prompt, DRP, forced photometry)
-- Per-task job profiles — typical flops, I/O read/write footprint, and duration distributions
-  for each pipeline step
-- Real site topology specs — actual bandwidth, CPU, and storage capacities for USDF, Base,
-  FrDF, UKDF, and Summit to replace the current approximate simulation parameters
-- Real workload cadences — job submission rates and batch sizes for nightly vs. DRP vs.
-  prompt processing runs
+3. **Construct the workload scheduling plugin** — implement DAG-aware job scheduling in CGSim
+   reflecting the Rubin pipeline task dependency graph (Butler pipeline connections), so
+   downstream tasks wait on upstream completions and failures propagate correctly.
+
+4. **Define data movement policies** — specify how and when files move between sites based on
+   Rubin's actual data flow (summit → USDF ingestion, cross-site replication to FrDF/UKDF, etc.).
+
+5. **Construct the output plugin** — emit simulation events in the same schema as the
+   OpenSearch PanDA operational index, replacing the current SQLite EVENTS table with an
+   output format compatible with both production inference and the datagen pipeline.
+
+6. **Integrate into the AskPanDA training pipeline** — wire the plugin output into
+   `CGSimDataGenerator` so the Proposer, Explainer, and Judge operate against
+   OpenSearch-schema-compatible data, closing the query interface and schema gaps.
+
+7. **Start scenario studies with error injections** — design and run a new set of scenarios
+   informed by real Rubin operational incidents, with fault injection targeting DAG-level
+   failures (mid-pipeline stalls, upstream task failures, site-level degradation during
+   active workflows).
 
 **What this doc provides as a plugin spec:**
 The current EVENTS schema (see `EVENT_SCHEMA` table in the Pipeline section) defines the
-contract the datagen pipeline consumes. The plugin must emit events conforming to this schema,
-extended with the DAG fields above. The existing Proposer prompt categories and Judge criteria
-apply unchanged to any compliant EVENTS database.
+existing contract the datagen pipeline consumes. The output plugin (step 5) must produce
+events that satisfy this contract — or the datagen pipeline is updated in lockstep to consume
+the new OpenSearch schema directly.
 
 ---
 
