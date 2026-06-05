@@ -179,6 +179,26 @@ no per-category quotas; the model decides the distribution within each batch. Ac
 dataset the 9 scenarios × 6 categories form a **54-cell matrix**, each cell contributing
 ~20–25 examples toward the 150-per-scenario target.
 
+Per-cell counts are not labeled in the output (the Proposer distributes freely without tagging
+categories). The matrix below shows approximate per-cell counts derived as scenario total ÷ 6.
+
+```
+                        │ Per-site │ File     │ Disk  │ Job dur/ │ CPU/stor │ Cross-  │ Total
+  Scenario               │ perf     │ transfer │ I/O   │ retries  │ util     │ site    │
+ ──────────────────────────────────────────────────────────────────────────────────────────────
+  usdf_degraded          │  ~22     │  ~22     │  ~22  │   ~22    │  ~22     │  ~22    │  132
+  base_degraded          │  ~22     │  ~22     │  ~22  │   ~22    │  ~22     │  ~21    │  131
+  frdf_offline           │  ~22     │  ~22     │  ~22  │   ~22    │  ~22     │  ~21    │  131
+  high_coadd_burst       │  ~22     │  ~22     │  ~22  │   ~21    │  ~22     │  ~21    │  130
+  usdf_storage_throttled │  ~22     │  ~21     │  ~22  │   ~21    │  ~22     │  ~21    │  129
+  summit_link_bottleneck │  ~21     │  ~21     │  ~21  │   ~21    │  ~22     │  ~22    │  128
+  transatlantic_congested│  ~21     │  ~21     │  ~21  │   ~21    │  ~22     │  ~21    │  127
+  baseline               │  ~21     │  ~21     │  ~21  │   ~21    │  ~20     │  ~20    │  124
+  high_load              │  ~20     │  ~20     │  ~20  │   ~21    │  ~21     │  ~20    │  122
+ ──────────────────────────────────────────────────────────────────────────────────────────────
+  Category total         │ ~193     │ ~192     │ ~193  │  ~192    │ ~193     │ ~191    │ 1,154
+```
+
 | Category | What it covers |
 |---|---|
 | Per-site performance | Aggregate job and I/O metrics scoped to a single facility — throughput, queue times, CPU/storage utilization — useful for identifying which site is under stress. |
