@@ -337,6 +337,55 @@ existing contract the datagen pipeline consumes. The output plugin (step 5) must
 events that satisfy this contract — or the datagen pipeline is updated in lockstep to consume
 the new OpenSearch schema directly.
 
+**Target example questions the plugin must enable:**
+
+The following illustrate the class of Quantum Graph-aware questions the extended schema needs
+to support. These are aspirational targets — they cannot be answered from the current EVENTS
+schema but define what the datagen pipeline should produce once the plugin is built.
+
+*Example 1 — Failure propagation through the DAG:*
+> "For tonight's DRP run, how many downstream quanta are blocked due to failed ISR quanta,
+> broken down by pipeline stage?"
+
+```sql
+SELECT json_extract(METADATA, '$.pipeline_stage') AS stage,
+       COUNT(*) AS blocked_quanta
+FROM EVENTS
+WHERE EVENT = 'JobExecution'
+  AND STATE = 'Finished'
+  AND json_extract(METADATA, '$.status') = 'blocked'
+  AND json_extract(METADATA, '$.workflow_id') = '<tonight_drp>'
+  AND json_extract(METADATA, '$.upstream_failed') = 1
+GROUP BY stage
+ORDER BY blocked_quanta DESC
+```
+
+This requires `pipeline_stage`, `workflow_id`, and `upstream_failed` metadata fields —
+none of which exist in the current schema.
+
+*Example 2 — Visit-level bottleneck identification:*
+> "Which visits have the most makeWarp quanta still queued, and what is the average
+> wait time per visit?"
+
+```sql
+SELECT json_extract(METADATA, '$.visit_id') AS visit,
+       COUNT(*) AS queued_quanta,
+       AVG(json_extract(METADATA, '$.queue_wait_time')) AS avg_wait_s
+FROM EVENTS
+WHERE EVENT = 'JobExecution'
+  AND STATE = 'Started'
+  AND json_extract(METADATA, '$.pipeline_stage') = 'makeWarp'
+  AND json_extract(METADATA, '$.status') = 'queued'
+GROUP BY visit
+ORDER BY queued_quanta DESC
+LIMIT 10
+```
+
+This requires `visit_id`, `pipeline_stage`, and `queue_wait_time` — again absent from the
+current schema. Both examples illustrate why step 3 (workload scheduling plugin with DAG
+semantics) and step 5 (output plugin with extended metadata) are prerequisites before the
+datagen pipeline can generate operationally useful Rubin training examples.
+
 ---
 
 ## Compute resources (Perlmutter, NERSC)
