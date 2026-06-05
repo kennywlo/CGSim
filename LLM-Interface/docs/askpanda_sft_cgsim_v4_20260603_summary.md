@@ -158,7 +158,10 @@ rejecting, identifying which criterion failed.
 Each scenario is an independent CGSim instance producing its own SQLite EVENTS DB and
 connecting to the SLAC AI gateway separately. The 9 jobs run in parallel on Perlmutter with
 no shared state. Together they cover the four failure-mode classes: normal operations,
-single-site failures, network bottlenecks, and burst workloads.
+single-site failures, network bottlenecks, and burst workloads. The simulation DBs collectively
+contain **~277K raw events** (53K for `high_coadd_burst` + ~28K each for the remaining 8
+scenarios), from which 1,154 training examples were distilled — roughly **1 example per 240
+simulation events**.
 
 | Scenario | Description | Examples |
 |---|---|---|
