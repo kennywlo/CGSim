@@ -373,11 +373,11 @@ class CGSimDataGenerator:
             "valid SQLite using only the documented schema and json_extract for metadata."
             f"{exclusion}"
         )
-        # 8000 cap: leaves ~6000 for Q+SQL output after ~2000 reasoning tokens,
-        # enough for 10-15 pairs at ~400 tokens each.
+        # 16000 cap: gives headroom for large-EVENTS scenarios (e.g. high_coadd_burst)
+        # to sustain batch_size=5 without token-limit retries.
         resp = self.client.beta.chat.completions.parse(
             model=self.generator_model,
-            max_tokens=8000,
+            max_tokens=16000,
             messages=[
                 {"role": "system", "content": DOMAIN_PRIMER},
                 {"role": "user",   "content": prompt},
