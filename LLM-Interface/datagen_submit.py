@@ -26,6 +26,7 @@ def main() -> None:
     ap.add_argument("--generator-model", default="", help="Override generator model")
     ap.add_argument("--judge-model",     default="", help="Override judge model")
     ap.add_argument("--scenarios",       nargs="+", help="Subset of scenarios (default: all)")
+    ap.add_argument("--propose-only",    action="store_true", help="Generate GRPO prompt dataset (propose-only mode)")
     args = ap.parse_args()
 
     manifest = json.loads(Path(args.manifest).read_text())
@@ -41,16 +42,21 @@ def main() -> None:
         name   = entry["name"]
         config = entry["config"]
         db     = entry["output_db"]
+        propose_only_arg = "1" if args.propose_only else ""
+        gm = getattr(args, 'generator_model', '')
+        jm = getattr(args, 'judge_model', '')
+        # Quote every positional arg so empty strings aren't collapsed by the shell,
+        # which would shift subsequent args into the wrong positional slots.
         wrap = (
-            f"bash {args.run_script} {name} {config} {db}"
-            f" {args.n} {args.outputs_dir} {args.cgsim_bin}"
-            f" {args.python} {args.clients_dir}"
-            f" {getattr(args, 'generator_model', '')}"
-            f" {getattr(args, 'judge_model', '')}"
+            f'bash {args.run_script} "{name}" "{config}" "{db}"'
+            f' "{args.n}" "{args.outputs_dir}" "{args.cgsim_bin}"'
+            f' "{args.python}" "{args.clients_dir}"'
+            f' "{gm}" "{jm}" "{propose_only_arg}"'
         )
+        job_prefix = "grpo-propose" if args.propose_only else "cgsim-datagen"
         cmd = [
             "sbatch",
-            f"--job-name=cgsim-datagen-{name}",
+            f"--job-name={job_prefix}-{name}",
             f"--account={args.account}",
             f"--qos={args.qos}",
             f"--constraint={args.constraint}",

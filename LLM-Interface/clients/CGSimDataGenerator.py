@@ -651,6 +651,63 @@ class CGSimDataGenerator:
         print(f"\nWrote {written} examples to {out}")
         return written
 
+    def run_propose_only(self, n: int, output_path: str, scenario: str = "") -> int:
+        """Propose-only mode: output {question, sql, scenario, db_path} for GRPO prompt dataset.
+
+        Skips SQL execution, explanation, and judging — just proposals.
+        """
+        ckpt_path = str(Path(self.db_path).parent / (Path(self.db_path).stem + ".ckpt.jsonl"))
+
+        preloaded: list[QAPair] = []
+        if Path(ckpt_path).exists():
+            preloaded = self._load_checkpoint(ckpt_path)
+            print(f"[checkpoint] loaded {len(preloaded)} pairs from {ckpt_path}", flush=True)
+
+        if len(preloaded) >= n:
+            pairs = preloaded[:n]
+            print(f"[checkpoint] proposal complete ({len(pairs)} pairs) — skipping proposer", flush=True)
+        else:
+            need = n - len(preloaded)
+            print(
+                f"Proposing {need} question/SQL pairs with {self.generator_model}"
+                + (f" ({len(preloaded)} already checkpointed)" if preloaded else "") + "...",
+                flush=True,
+            )
+            pairs = self.propose_pairs(n, checkpoint_path=ckpt_path, preloaded=preloaded)
+
+        out = Path(output_path)
+        done_questions: set[str] = set()
+        if out.exists() and out.stat().st_size > 0:
+            for line in out.open():
+                line = line.strip()
+                if not line:
+                    continue
+                done_questions.add(json.loads(line).get("question", ""))
+            if done_questions:
+                print(f"[checkpoint] skipping {len(done_questions)} already-written pairs", flush=True)
+
+        pending = [p for p in pairs if p.question not in done_questions]
+        print(f"Got {len(pairs)} pairs; writing {len(pending)} to {output_path}", flush=True)
+
+        written = 0
+        with out.open("a") as f:
+            for pair in pending:
+                row = {
+                    "question": pair.question,
+                    "sql": pair.sql,
+                    "scenario": scenario,
+                    "db_path": str(self.db_path),
+                }
+                f.write(json.dumps(row, ensure_ascii=False) + "\n")
+                written += 1
+
+        if Path(ckpt_path).exists():
+            Path(ckpt_path).unlink()
+            print(f"[checkpoint] removed {ckpt_path}", flush=True)
+
+        print(f"\nWrote {written} prompts to {out}")
+        return written
+
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Generate AskPanDA SFT data from a CGSim DB")
@@ -660,6 +717,9 @@ def main() -> None:
     ap.add_argument("--generator-model", default=GENERATOR_MODEL)
     ap.add_argument("--judge-model", default=JUDGE_MODEL)
     ap.add_argument("--no-judge", action="store_true", help="Disable judge quality filter")
+    ap.add_argument("--propose-only", action="store_true",
+                    help="Output {question,sql,scenario,db_path} only; skip execute/explain/judge (for GRPO dataset)")
+    ap.add_argument("--scenario", default="", help="Scenario name label for propose-only output")
     args = ap.parse_args()
 
     if not Path(args.db).exists():
@@ -669,9 +729,12 @@ def main() -> None:
         db_path=args.db,
         generator_model=args.generator_model,
         judge_model=args.judge_model,
-        use_judge=not args.no_judge,
+        use_judge=not args.no_judge and not args.propose_only,
     )
-    gen.run(args.n, args.out)
+    if args.propose_only:
+        gen.run_propose_only(args.n, args.out, scenario=args.scenario)
+    else:
+        gen.run(args.n, args.out)
 
 
 if __name__ == "__main__":

@@ -21,6 +21,7 @@ PYTHON       ?= $(HOME)/.conda/envs/wf-seminar/bin/python3.10
 ACCOUNT      ?= m2616
 OUTPUTS_DIR  ?= $(PSCRATCH)/cgsim-outputs
 EXAMPLES_PER_SCENARIO ?= 100
+GRPO_QUESTIONS_PER_SCENARIO ?= 150
 GENERATOR_MODEL       ?=
 JUDGE_MODEL           ?=
 
@@ -43,7 +44,8 @@ help:
 	@echo ""
 	@echo "  make scenarios                    Generate scenario config files"
 	@echo "  make datagen-local SCENARIO=name  Run one scenario locally"
-	@echo "  make datagen-submit               Submit all scenarios via sbatch"
+	@echo "  make datagen-submit               Submit all scenarios via sbatch (SFT dataset)"
+	@echo "  make grpo-submit                  Submit propose-only jobs via sbatch (GRPO dataset)"
 	@echo "  make merge                        Merge all JSONL into one file"
 	@echo "  make clean-scenarios              Delete generated scenario configs"
 	@echo ""
@@ -110,6 +112,27 @@ datagen-submit: $(MANIFEST)
 	    --n           $(EXAMPLES_PER_SCENARIO) \
 	    $(if $(GENERATOR_MODEL),--generator-model $(GENERATOR_MODEL),) \
 	    $(if $(JUDGE_MODEL),--judge-model $(JUDGE_MODEL),) \
+	    $(if $(SCENARIOS),--scenarios $(SCENARIOS),)
+
+# ---- Submit propose-only jobs for GRPO prompt dataset ----
+
+.PHONY: grpo-submit
+grpo-submit: $(MANIFEST)
+	$(PYTHON) $(HERE)datagen_submit.py \
+	    --manifest    $(MANIFEST) \
+	    --outputs-dir $(OUTPUTS_DIR) \
+	    --cgsim-bin   $(CGSIM_BIN) \
+	    --python      $(PYTHON) \
+	    --clients-dir $(CLIENTS_DIR) \
+	    --run-script  $(HERE)datagen_run.sh \
+	    --account      $(ACCOUNT) \
+	    --qos          $(SLURM_QOS) \
+	    --constraint   $(SLURM_CONSTRAINT) \
+	    --time         $(SLURM_TIME) \
+	    --cpus         $(SLURM_CPUS) \
+	    --mem-per-cpu  $(SLURM_MEM_PER_CPU) \
+	    --n           $(GRPO_QUESTIONS_PER_SCENARIO) \
+	    --propose-only \
 	    $(if $(SCENARIOS),--scenarios $(SCENARIOS),)
 
 # ---- Merge all JSONL into one training file ----
