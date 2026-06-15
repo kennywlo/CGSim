@@ -1,7 +1,10 @@
-# AskPanDA SFT Dataset v4 — Datagen Run Summary
+# AskPanDA CGSim Training Pipeline Summary
 
-**Date:** June 3, 2026  
-**Output:** `askpanda_sft_cgsim_v4_20260603.jsonl` — **1,154 examples**
+**Phase 1 — SFT Dataset v4**  
+Date: June 3, 2026 | Output: `askpanda_sft_cgsim_v4_20260603.jsonl` — **1,154 examples**
+
+**Phase 2 — GRPO Prompt Dataset**  
+Date: June 14, 2026 | Output: `LLM-Interface/data/grpo/grpo_<scenario>_20260614_19xxxx.jsonl` — **1,350 prompts** (150 × 9 scenarios)
 
 ---
 
@@ -388,7 +391,7 @@ datagen pipeline can generate operationally useful Rubin training examples.
 
 ---
 
-## Compute resources (Perlmutter, NERSC)
+## Phase 1 compute resources (Perlmutter, NERSC)
 
 | | |
 |---|---|
@@ -433,6 +436,117 @@ due to an 87% larger event database (53K vs 28K rows) that extends both simulati
    Only pending pairs are re-processed; no example is generated twice.
 
 The proposal checkpoint is deleted on successful completion of a full run.
+
+---
+
+## Phase 2 — GRPO Prompt Dataset
+
+The GRPO prompt dataset is the input to Stage 4 (GRPO RL training). Unlike the SFT dataset,
+each record contains only `{question, sql, scenario, db_path}` — no executed results or
+answers. During GRPO training the policy model generates N rollouts (SQL attempts) per prompt;
+each is executed against the paired SQLite DB and scored by a verifiable reward signal.
+
+### Why a separate prompt dataset?
+
+GRPO training is *online*: the policy generates rollouts at training time, not ahead of time.
+Separating prompt generation from training allows the prompt set to be audited and versioned
+independently, the same prompts to be reused across training runs with different hyperparameters,
+and the DB snapshots to be frozen so reward evaluation is deterministic across runs.
+
+### Pipeline: propose-only mode
+
+The GRPO dataset uses `CGSimDataGenerator` in `--propose-only` mode, running only the Proposer
+and skipping the Executor, Explainer, and Judge:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        CGSim (SimGrid)                      │
+│   9 scenarios × Rubin Observatory topology (568 nodes)      │
+└──────────────────────┬──────────────────────────────────────┘
+                       │ SQLite EVENTS DB
+                       ▼
+┌─────────────────────────────────────────────────────────────┐
+│               CGSimDataGenerator (--propose-only)           │
+│                                                             │
+│  ┌─────────────┐                                            │
+│  │  Proposer   │──▶  {question, sql, scenario, db_path}     │
+│  │ Sonnet 4.6  │                                            │
+│  │ structured  │                                            │
+│  │  output     │                                            │
+│  └─────────────┘                                            │
+└─────────────────────────────────────────────────────────────┘
+                       │
+                       ▼
+            ┌─────────────────────────┐
+            │   GRPO Prompt JSONL     │
+            │  {question, sql,        │
+            │   scenario, db_path}    │
+            └─────────────────────────┘
+```
+
+**Structured output** — the Proposer uses `beta.chat.completions.parse` with a `QABatch`
+Pydantic schema, forcing exactly N `(question, sql)` pairs per API call. Plain JSON mode
+produced only 2–3 pairs per batch and stalled at 15–40 proposals; structured output reliably
+produces 5 pairs per batch to reach 150.
+
+**`max_tokens=16000`** — bumped from 8000 to eliminate token-limit grinding on
+`high_coadd_burst` (53K-row DB), where larger context caused hits at batch_size=5 and forced
+40+ minutes of batch_size=2 retries.
+
+**DB provenance** — GRPO DBs use `rubin_grpo_<scenario>_<timestamp>.db`, distinct from SFT
+DBs (`rubin_<scenario>.db`), to prevent accidental overwrites. The GRPO DB is a frozen
+snapshot used as the oracle for scoring model-generated SQL during RL training.
+
+**Auto-copy** — `datagen_run.sh` automatically copies both the DB and JSONL into
+`LLM-Interface/data/grpo/` at the end of each GRPO run so outputs land in the repo without
+a manual `scp` step.
+
+### Dataset composition
+
+| Scenario | Prompts | Wall time |
+|---|---|---|
+| baseline | 150 | 40 min |
+| usdf_degraded | 150 | 56 min |
+| base_degraded | 150 | 33 min |
+| frdf_offline | 150 | 39 min |
+| high_coadd_burst | 150 | **78 min** |
+| usdf_storage_throttled | 150 | 40 min |
+| summit_link_bottleneck | 150 | 34 min |
+| transatlantic_congested | 150 | 35 min |
+| high_load | 150 | 49 min |
+| **Total** | **1,350** | |
+
+`high_coadd_burst` is again the slowest scenario: its 53K-row EVENTS DB (~87% larger than the
+~28K-row average) increases both simulation runtime and LLM context pressure per Proposer batch.
+
+### Phase 2 compute resources (Perlmutter, NERSC)
+
+| | |
+|---|---|
+| System | Perlmutter CPU partition (`shared` QOS) |
+| Allocation | m2616 |
+| Per job | 4 CPUs, 7.4 GB RAM, 2h wall time |
+| Parallelism | 9 jobs simultaneously (one per scenario) |
+| Wall-clock span | ~79 min (19:04 – 20:23 PDT, June 14, 2026) |
+| Final wave job IDs | 54464906–54464917 |
+
+The GRPO dataset required 4 job waves to complete. Waves 1–3 failed due to:
+
+1. **Wave 1 — DB path collision** — GRPO jobs used the SFT naming convention
+   (`rubin_<scenario>.db`), overwriting 4 SFT DBs. Fixed by switching to
+   `rubin_grpo_<scenario>_<timestamp>.db`.
+
+2. **Wave 2 — SLAC AI gateway outage** — Gateway returned null `choices` responses for ~1
+   hour. All 9 jobs hit the 1h wall time with 0 proposals generated.
+
+3. **Wave 3 — Positional arg shift + plain JSON** — Empty `generator_model` and `judge_model`
+   args were collapsed by the shell, shifting `propose_only="1"` into `$9` where it was read
+   as `GENERATOR_MODEL`, causing jobs to run in SFT mode against an invalid model ID. Fixed by
+   quoting all positional args in `datagen_submit.py`. Also ran with plain JSON mode (Proposer
+   stalled at 15–40 proposals per scenario).
+
+4. **Wave 4 — Success** — Reverted to `beta.chat.completions.parse`, bumped `max_tokens` to
+   16000. All 9 scenarios completed at exactly 150 prompts.
 
 ---
 
