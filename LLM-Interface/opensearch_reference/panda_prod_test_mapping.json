@@ -1,0 +1,551 @@
+{
+    "panda_prod_test-2026-06": {
+        "mappings": {
+            "properties": {
+                "@timestamp": {
+                    "type": "date"
+                },
+                "actualcorecount": {
+                    "type": "long"
+                },
+                "assignedpriority": {
+                    "type": "long"
+                },
+                "atlasrelease": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "attemptnr": {
+                    "type": "long"
+                },
+                "avgpss": {
+                    "type": "long"
+                },
+                "avgrss": {
+                    "type": "long"
+                },
+                "avgswap": {
+                    "type": "long"
+                },
+                "avgvmem": {
+                    "type": "long"
+                },
+                "batchid": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "brokerageerrorcode": {
+                    "type": "long"
+                },
+                "cloud": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "cmtconfig": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "commandtopilot": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "computingelement": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "computingsite": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "corecount": {
+                    "type": "long"
+                },
+                "cpuconsumptiontime": {
+                    "type": "float"
+                },
+                "cpuconsumptionunit": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "cpuconversion": {
+                    "type": "float"
+                },
+                "creationtime": {
+                    "type": "date"
+                },
+                "currentpriority": {
+                    "type": "long"
+                },
+                "ddmerrorcode": {
+                    "type": "long"
+                },
+                "ddmerrordiag": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "destinationdblock": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "diskio": {
+                    "type": "long"
+                },
+                "endtime": {
+                    "type": "date"
+                },
+                "exeerrorcode": {
+                    "type": "long"
+                },
+                "exeerrordiag": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "failedattempt": {
+                    "type": "long"
+                },
+                "gshare": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "hs06": {
+                    "type": "long"
+                },
+                "hs06sec": {
+                    "type": "long"
+                },
+                "ipconnectivity": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "jeditaskid": {
+                    "type": "long"
+                },
+                "job_label": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "jobdefinitionid": {
+                    "type": "long"
+                },
+                "jobdispatchererrorcode": {
+                    "type": "long"
+                },
+                "jobdispatchererrordiag": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "jobexecutionid": {
+                    "type": "long"
+                },
+                "jobmetrics": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "jobname": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "jobsetid": {
+                    "type": "long"
+                },
+                "jobstatus": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "jobsubstatus": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "lockedby": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "maxattempt": {
+                    "type": "long"
+                },
+                "maxcpucount": {
+                    "type": "long"
+                },
+                "maxcpuunit": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "maxdiskcount": {
+                    "type": "long"
+                },
+                "maxdiskunit": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "maxpss": {
+                    "type": "long"
+                },
+                "maxrss": {
+                    "type": "long"
+                },
+                "maxswap": {
+                    "type": "long"
+                },
+                "maxvmem": {
+                    "type": "long"
+                },
+                "maxwalltime": {
+                    "type": "long"
+                },
+                "minramcount": {
+                    "type": "long"
+                },
+                "minramunit": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "modificationhost": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "modificationtime": {
+                    "type": "date"
+                },
+                "nevents": {
+                    "type": "long"
+                },
+                "noutputdatafiles": {
+                    "type": "long"
+                },
+                "outputfilebytes": {
+                    "type": "long"
+                },
+                "pandaid": {
+                    "type": "long"
+                },
+                "piloterrorcode": {
+                    "type": "long"
+                },
+                "piloterrordiag": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "pilotid": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "pilottiming": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "processingtype": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "proddbupdatetime": {
+                    "type": "date"
+                },
+                "prodserieslabel": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "prodsourcelabel": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "produserid": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "produsername": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "raterbytes": {
+                    "type": "long"
+                },
+                "raterchar": {
+                    "type": "long"
+                },
+                "ratewbytes": {
+                    "type": "long"
+                },
+                "ratewchar": {
+                    "type": "long"
+                },
+                "relocationflag": {
+                    "type": "long"
+                },
+                "reqid": {
+                    "type": "long"
+                },
+                "resource_type": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "schedulerid": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "specialhandling": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "starttime": {
+                    "type": "date"
+                },
+                "statechangetime": {
+                    "type": "date"
+                },
+                "superrorcode": {
+                    "type": "long"
+                },
+                "superrordiag": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "taskbuffererrorcode": {
+                    "type": "long"
+                },
+                "taskbuffererrordiag": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "taskid": {
+                    "type": "long"
+                },
+                "totrbytes": {
+                    "type": "long"
+                },
+                "totrchar": {
+                    "type": "long"
+                },
+                "totwbytes": {
+                    "type": "long"
+                },
+                "totwchar": {
+                    "type": "long"
+                },
+                "transexitcode": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "transformation": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "vo": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "workinggroup": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
+                "workqueue_id": {
+                    "type": "long"
+                }
+            }
+        }
+    }
+}
