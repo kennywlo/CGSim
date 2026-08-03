@@ -1,0 +1,206 @@
+{
+  "schema_version": "0.2",
+  "provenance": {
+    "fit_source": "synthetic",
+    "campaign": "demo",
+    "n_samples": 624,
+    "lsst_distrib_versions": [
+      "synthetic"
+    ],
+    "fit_inputs": []
+  },
+  "models": {
+    "isr:LSSTCam": {
+      "cpu_s": {
+        "dist": "lognorm",
+        "params": [
+          0.4,
+          0.0,
+          30.0
+        ]
+      },
+      "wall_s": {
+        "dist": "lognorm",
+        "params": [
+          0.4,
+          0.0,
+          35.0
+        ]
+      },
+      "max_rss_mb": {
+        "dist": "lognorm",
+        "params": [
+          0.3,
+          0.0,
+          2000.0
+        ]
+      }
+    },
+    "characterizeImage:LSSTCam": {
+      "cpu_s": {
+        "dist": "lognorm",
+        "params": [
+          0.5,
+          0.0,
+          60.0
+        ]
+      },
+      "wall_s": {
+        "dist": "lognorm",
+        "params": [
+          0.5,
+          0.0,
+          70.0
+        ]
+      },
+      "max_rss_mb": {
+        "dist": "lognorm",
+        "params": [
+          0.3,
+          0.0,
+          2500.0
+        ]
+      }
+    },
+    "calibrate:LSSTCam": {
+      "cpu_s": {
+        "dist": "lognorm",
+        "params": [
+          0.5,
+          0.0,
+          90.0
+        ]
+      },
+      "wall_s": {
+        "dist": "lognorm",
+        "params": [
+          0.5,
+          0.0,
+          100.0
+        ]
+      },
+      "max_rss_mb": {
+        "dist": "lognorm",
+        "params": [
+          0.3,
+          0.0,
+          3000.0
+        ]
+      }
+    },
+    "makeWarp:LSSTCam": {
+      "cpu_s": {
+        "dist": "lognorm",
+        "params": [
+          0.6,
+          0.0,
+          120.0
+        ]
+      },
+      "wall_s": {
+        "dist": "lognorm",
+        "params": [
+          0.6,
+          0.0,
+          140.0
+        ]
+      },
+      "max_rss_mb": {
+        "dist": "lognorm",
+        "params": [
+          0.4,
+          0.0,
+          3500.0
+        ]
+      }
+    },
+    "assembleCoadd:LSSTCam": {
+      "cpu_s": {
+        "dist": "lognorm",
+        "params": [
+          0.7,
+          0.0,
+          300.0
+        ]
+      },
+      "wall_s": {
+        "dist": "lognorm",
+        "params": [
+          0.7,
+          0.0,
+          340.0
+        ]
+      },
+      "max_rss_mb": {
+        "dist": "lognorm",
+        "params": [
+          0.4,
+          0.0,
+          6000.0
+        ]
+      }
+    }
+  },
+  "dataset_types": {
+    "raw": {
+      "bytes": {
+        "dist": "lognorm",
+        "params": [
+          0.2,
+          0.0,
+          2000000000.0
+        ]
+      }
+    },
+    "postISRCCD": {
+      "bytes": {
+        "dist": "lognorm",
+        "params": [
+          0.2,
+          0.0,
+          2000000000.0
+        ]
+      }
+    },
+    "icSrc": {
+      "bytes": {
+        "dist": "lognorm",
+        "params": [
+          0.2,
+          0.0,
+          50000000.0
+        ]
+      }
+    },
+    "calexp": {
+      "bytes": {
+        "dist": "lognorm",
+        "params": [
+          0.2,
+          0.0,
+          1500000000.0
+        ]
+      }
+    },
+    "deepCoadd_directWarp": {
+      "bytes": {
+        "dist": "lognorm",
+        "params": [
+          0.2,
+          0.0,
+          800000000.0
+        ]
+      }
+    },
+    "deepCoadd": {
+      "bytes": {
+        "dist": "lognorm",
+        "params": [
+          0.2,
+          0.0,
+          1000000000.0
+        ]
+      }
+    }
+  }
+}

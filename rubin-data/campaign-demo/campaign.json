@@ -1,0 +1,71 @@
+{
+  "schema_version": "0.2",
+  "campaign": {
+    "name": "synthetic_demo_dp",
+    "provenance": {
+      "lsst_distrib": "synthetic",
+      "drp_pipe_ref": "synthetic",
+      "pipeline_yaml": "synthetic://generate_campaign.py",
+      "source": "synthetic"
+    },
+    "nodes": [
+      {
+        "id": "b5577a5b-1ed9-459f-971a-210ff172dfcb",
+        "kind": "start",
+        "name": "START",
+        "configuration": {}
+      },
+      {
+        "id": "f50d7420-3113-4556-9fa1-0c834c095d91",
+        "kind": "step",
+        "name": "step_demo",
+        "configuration": {
+          "splitter": {
+            "split_by": "null"
+          }
+        }
+      },
+      {
+        "id": "8ccb504d-cf1f-42f6-98f5-c177778789cc",
+        "kind": "group",
+        "name": "step_demo_g0",
+        "configuration": {
+          "predicate": "instrument='LSSTCam' AND visit < 20",
+          "wms": "panda",
+          "site": "USDF",
+          "qgraph_ref": "4453a363-6bfd-4cb1-a2b6-441d36cfa06a"
+        }
+      },
+      {
+        "id": "53fc8046-8ab9-4b26-a58c-16dcbcd576c0",
+        "kind": "collect_groups",
+        "name": "step_demo_collect",
+        "configuration": {}
+      },
+      {
+        "id": "dc2b78e4-d1c1-434a-ae4b-947431fc7b06",
+        "kind": "end",
+        "name": "END",
+        "configuration": {}
+      }
+    ],
+    "edges": [
+      {
+        "source": "b5577a5b-1ed9-459f-971a-210ff172dfcb",
+        "target": "f50d7420-3113-4556-9fa1-0c834c095d91"
+      },
+      {
+        "source": "f50d7420-3113-4556-9fa1-0c834c095d91",
+        "target": "8ccb504d-cf1f-42f6-98f5-c177778789cc"
+      },
+      {
+        "source": "8ccb504d-cf1f-42f6-98f5-c177778789cc",
+        "target": "53fc8046-8ab9-4b26-a58c-16dcbcd576c0"
+      },
+      {
+        "source": "53fc8046-8ab9-4b26-a58c-16dcbcd576c0",
+        "target": "dc2b78e4-d1c1-434a-ae4b-947431fc7b06"
+      }
+    ]
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "schema_version": "0.2",
+  "method": "user_labeled",
+  "clusters": [
+    {
+      "name": "sfp_visit_detector",
+      "task_labels": [
+        "isr",
+        "characterizeImage",
+        "calibrate"
+      ],
+      "dimensions": [
+        "visit",
+        "detector"
+      ],
+      "equal_dimensions": [],
+      "max_quanta": null,
+      "request_memory_mb": 4096,
+      "request_cpus": 4
+    },
+    {
+      "name": "warp_patch_visit",
+      "task_labels": [
+        "makeWarp"
+      ],
+      "dimensions": [
+        "tract",
+        "patch",
+        "visit"
+      ],
+      "equal_dimensions": [],
+      "max_quanta": null,
+      "request_memory_mb": 4096,
+      "request_cpus": 2
+    },
+    {
+      "name": "coadd_patch",
+      "task_labels": [
+        "assembleCoadd"
+      ],
+      "dimensions": [
+        "tract",
+        "patch",
+        "band"
+      ],
+      "equal_dimensions": [],
+      "max_quanta": null,
+      "request_memory_mb": 8192,
+      "request_cpus": 4
+    }
+  ],
+  "overhead": {
+    "pipetask_init_s": null,
+    "final_job_s": null,
+    "per_quantum_startup_s": null
+  },
+  "wms_retry": {
+    "max_retries": 3,
+    "memory_multiplier": null
+  }
+}
