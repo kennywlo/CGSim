@@ -1,9 +1,14 @@
 """
-ScenarioConfigGenerator — generate CGSim config variants for failure-mode coverage.
+ScenarioConfigGenerator — generate legacy flat-workload CGSim config variants.
 
 Each scenario starts from the baseline Rubin 5-site topology and applies targeted
 overrides (reduced site capacity, network throttling, shifted job mix) so that the
 resulting EVENTS databases exercise different operational patterns for AskPanDA SFT.
+
+This module is retained to reproduce the pre-QuantumGraph datasets. It is not the
+active PanDA/QG topology: new QG work targets PanDA execution at SLAC,
+CC-IN2P3, LANCS, and RAL. Do not use these aggregate five-site job-placement
+weights to fit PanDA behavior; calibrate each canonical site/queue separately.
 
 Output layout:
   <output_dir>/

@@ -1,14 +1,63 @@
-# CGSim → AskPanDA SFT Datagen Pipeline
+# CGSim → AskPanDA PanDA/QG Datagen Pipeline
 
 Generates supervised fine-tuning (SFT) data for the AskPanDA assistant by running
 CGSim (a SimGrid-based Rubin grid simulator), then using an LLM to produce
 question/answer pairs grounded in the resulting EVENTS database.
 
+## Active scope
+
+The current target is **PanDA workflow behavior only**, with Rubin
+QuantumGraph processing across every Rubin Data Facility attached to PanDA:
+
+- USDF: `SLAC_Rubin_*`
+- FrDF: `CC-IN2P3_Rubin_*`
+- UKDF: `LANCS_Rubin_*` and `RAL_Rubin_*`
+- site-specific PanDA/BPS queue routing, retries, failures, job records, and
+  pilot logs
+- Rucio/FTS movement among the corresponding SLAC, IN2P3, LANCS, and RAL
+  storage endpoints where required
+- no HTCondor workflow/history modeling
+- no dependency on production cm-service activity logs
+
+The five-site flat-workload scenario generator and existing SFT datasets are
+retained as historical baselines. They do not define the target topology or
+calibration population for the PanDA/QG run unless filtered to PanDA semantics
+and the canonical site identities above. See
+`rubin_campaign_schema_v0.2.md` for the active contract.
+
+## DGX Spark development environment
+
+DGX Spark is the development, fitting, datagen, and model-work environment. The
+real LSST-stack QuantumGraph export remains a Perlmutter (or other supported Rubin
+environment) step; a full LSST Stack is not required here.
+
+Create the isolated Python environment once:
+
+```bash
+conda env create -f environment-dgx.yml
+```
+
+For each shell, activate Python and expose the current CGSim/SimGrid installs:
+
+```bash
+conda activate cgsim-rubin
+source scripts/dgx-env.sh
+```
+
+Reconfigure/rebuild the Rubin plugin against those installs and run the synthetic
+DAG validation with:
+
+```bash
+scripts/build-rubin-plugin-dgx.sh
+scripts/smoke-rubin-dag-dgx.sh
+```
+
 ---
 
-## Next run checklist
+## Legacy flat-workload rerun checklist
 
-The simulation parameters changed since v2 (2026-06-02). Scenario configs on disk
+This checklist reproduces the existing five-site baseline; it is not the active
+PanDA/QG run. The simulation parameters changed since v2 (2026-06-02). Scenario configs on disk
 are stale — **regenerate them before submitting jobs.**
 
 **What changed:**
@@ -84,7 +133,7 @@ Output lands in `LLM-Interface/data/askpanda_sft_cgsim_v<YYYYMMDD>.jsonl`.
 
 ---
 
-## Scenarios
+## Legacy flat-workload scenarios
 
 | Scenario | Jobs | Description |
 |---|---|---|
@@ -111,7 +160,7 @@ make datagen-submit ACCOUNT=m2616 OUTPUTS_DIR=$PSCRATCH/cgsim-outputs \
 
 ---
 
-## Simulation topology
+## Legacy flat-workload topology
 
 Five-site Rubin network (Summit → Base → {USDF, FrDF, UKDF}):
 

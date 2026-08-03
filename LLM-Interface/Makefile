@@ -1,4 +1,8 @@
-# CGSim → AskPanDA SFT datagen pipeline
+# Legacy five-site CGSim → AskPanDA SFT datagen pipeline
+#
+# The active development target is PanDA/BPS QuantumGraph processing across
+# SLAC, CC-IN2P3, LANCS, and RAL. These targets reproduce the pre-QG
+# flat-workload datasets.
 #
 # Targets:
 #   make scenarios              Generate scenario config files from baseline topology
@@ -40,9 +44,10 @@ SLURM_CONSTRAINT ?= cpu
 .PHONY: help
 help:
 	@echo ""
-	@echo "CGSim → AskPanDA SFT datagen pipeline"
+	@echo "Legacy five-site CGSim → AskPanDA SFT datagen pipeline"
+	@echo "Active target: PanDA/BPS QG at SLAC, CC-IN2P3, LANCS, and RAL"
 	@echo ""
-	@echo "  make scenarios                    Generate scenario config files"
+	@echo "  make scenarios                    Generate legacy five-site scenario configs"
 	@echo "  make datagen-local SCENARIO=name  Run one scenario locally"
 	@echo "  make datagen-submit               Submit all scenarios via sbatch (SFT dataset)"
 	@echo "  make grpo-submit                  Submit propose-only jobs via sbatch (GRPO dataset)"

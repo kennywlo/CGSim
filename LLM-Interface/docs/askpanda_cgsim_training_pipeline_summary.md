@@ -1,5 +1,11 @@
 # AskPanDA CGSim Training Pipeline Summary
 
+> **Historical baseline.** This document describes the June 2026 five-site,
+> flat-workload dataset. The active target is now PanDA/BPS QuantumGraph processing
+> at SLAC, CC-IN2P3, LANCS, and RAL, with no HTCondor or cm-service calibration
+> dependency. The historical results below are retained for reproducibility and must not be used
+> as pooled PanDA fit parameters.
+
 **Phase 1 — SFT Dataset v4**  
 Date: June 3, 2026 | Output: `askpanda_sft_cgsim_v4_20260603.jsonl` — **1,154 examples**
 

@@ -1,4 +1,4 @@
-# Rubin plugin — questions for Raees (Wed 2026-08-05)
+# Rubin PanDA plugin — implementation questions for Raees (Wed 2026-08-05)
 
 Context: `dispatch_plugins/rubin-plugin/` is a working scaffold implementing the DAG
 scheme from `rubin_campaign_schema_v0.2.md` (verified end-to-end 2026-08-03; see its
@@ -7,13 +7,25 @@ the actual plugin. Several were simplified against public PanDA/Rubin docs — w
 production behavior is documented, the question is just "any objection to mirroring it?"
 (sources at bottom).
 
+## Fixed scope and decisions
+
+- WMS: PanDA only; no HTCondor path
+- compute: all Rubin PanDA facilities — SLAC, CC-IN2P3, LANCS, and RAL
+- data movement: Rucio/FTS links among the corresponding facility RSEs
+- calibration: PanDA records and pilot logs fitted separately by site/queue; no cm-service
+  activity-log dependency
+- dependency release: plugin-side pending-job gating
+- rescue: pre-materialized gated clusters for v0.2
+- interchange: manifest + `quanta.jsonl` + `edges.jsonl`
+
 ## Scheduling (queue routing)
 
 1. Queue routing is documented (panda.lsst.io): BPS `requestMemory` maps to the
    `<site>_Rubin_<size>G` queue with minRSS < requestMemory <= maxRSS (e.g. 5000MB →
    `_8G`). Plan is to mirror exactly that rule, with per-queue caps from CRIC. Any
-   objection? Only open sub-question: do the special `_Merge` / `_Multi` queues matter
-   for the DRP scenarios we want to simulate, or can v1 ignore them?
+   objection? Apply to `SLAC_Rubin_*`, `CC-IN2P3_Rubin_*`, `LANCS_Rubin_*`, and
+   `RAL_Rubin_*`. Open sub-question:
+   which QG clusters require the special `_Merge` / `_Multi` queues in v1?
 2. Memory-retry is also documented (PanDA brokerage): on an OOM failure, JEDI raises
    ramCount to the next rung of [1,2,3,4,6,8] GB above max(maxPSS, current), which
    re-routes the retry to a higher tier. OK to hard-code that ladder as the spill
@@ -22,17 +34,16 @@ production behavior is documented, the question is just "any objection to mirror
 ## Failure model
 
 3. Status vocabulary decision: `pipetask report` (QuantumProvenanceGraph) calls
-   downstream-of-failure quanta "blocked", while the schema §8 / cm-service taxonomy
-   calls them `failed_upstream` (and reserves "wonky" cases for human review). Which
+   downstream-of-failure quanta "blocked", while the schema calls their outcome
+   `failed_upstream` (and reserves "wonky" cases for human review). Which
    vocabulary should the simulator emit, and do children of failed parents get explicit
    records or simply never release?
-4. For `failures.json` injection: do you want site-level events (outage/degraded, as
-   the CC-IN2P3 data supports) in v1, or start with per-resource_key `p_fail` only?
-5. Production has two recovery layers: WMS-level `bps restart` (re-runs failed jobs
-   within the same submission) vs. cm-service rescue (new subset qgraph over
-   unexecuted quanta). Core's one-shot `getWorkload()` only constrains the latter —
-   are you OK pre-materializing rescue clusters gated on parent failure, or do you
-   want to push Paul for a core job-injection hook first? (Schema open question 1.)
+4. Start v1 with `resource_key` failure rates fitted separately for each site and
+   queue. Should site-level outage/degraded events be included immediately, or wait
+   until each site's sample supports stable rates?
+5. Implement both PanDA/BPS recovery layers: same-submission `bps restart` and a
+   pre-materialized subset-qgraph rescue gated on parent failure. Confirm the output
+   linkage fields needed to distinguish retry attempts from rescue jobs.
 
 ## Data movement (Rucio + FTS + xrootd in production)
 
@@ -41,8 +52,8 @@ production behavior is documented, the question is just "any objection to mirror
    re-resolution at release time, or (b) model Rucio-rule-driven transfers
    plugin-side? Which lands in v1?
 7. Production moves data via Rucio rules + FTS, with jobs often reading via xrootd
-   rather than staging to local disk. For the first studies, is the minimal model
-   enough — input staging as a group-start precondition plus USDF consolidation — or
+   rather than staging to local disk. For the first studies, is a minimal per-link
+   staging/consolidation model among SLAC, IN2P3, LANCS, and RAL enough, or
    do you need the direct-access (xrootd) vs. staged distinction and per-link
    concurrency limits from day one?
 
@@ -62,11 +73,9 @@ production behavior is documented, the question is just "any objection to mirror
 
 ## Scale & format
 
-11. The native `.qgraph` format is a custom binary designed for per-node random access
-    (not pickle, not JSON) — our JSON export is a derived artifact either way, and the
-    exporter can naturally stream one node at a time. That makes JSON-lines the
-    obvious target for the 10^6-quantum case (schema open question 4). Confirm
-    JSON-lines so the plugin parser gets written once?
+11. Implement the resolved bundle contract: `qgraph_manifest.json`,
+    `quanta.jsonl`, and `edges.jsonl`. Can the parser consume records
+    incrementally without retaining the full graph twice in memory?
 12. Timeline: which of these do you want in your v1 vs. deferred, and does the
     scaffold's structure (QGRAPH_WORKLOAD / RUBIN_DISPATCHER / OUTPUT split) work for
     you as the base, or will you restructure?

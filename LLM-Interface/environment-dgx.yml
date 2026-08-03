@@ -1,0 +1,17 @@
+name: cgsim-rubin
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pip
+  - numpy
+  - scipy
+  - pandas
+  - matplotlib
+  - pydantic>=2
+  - httpx
+  - openai
+  - opensearch-py
+  - jsonschema
+  - pyyaml
+  - pytest

@@ -1,5 +1,27 @@
 # Datagen TODO
 
+## Active scope
+
+Target PanDA/BPS workflows only, across all Rubin PanDA sites:
+`SLAC_Rubin_*` (USDF), `CC-IN2P3_Rubin_*` (FrDF), and
+`LANCS_Rubin_*`/`RAL_Rubin_*` (UKDF). Fit site and queue behavior separately;
+do not pool facility rates. HTCondor history and cm-service activity logs are not
+required inputs. The legacy five-site generator remains available for reproducing
+older datasets.
+
+## DGX Spark preparation — completed 2026-08-03
+
+- [x] Verify GB10 CUDA execution (`nvidia-smi` plus a PyTorch CUDA tensor test)
+- [x] Create and validate the `cgsim-rubin` Conda environment from
+      `environment-dgx.yml`
+- [x] Add reusable CGSim/SimGrid environment and build helpers under `scripts/`
+- [x] Reconfigure and rebuild `rubin-plugin` against the current
+      `CGSim-install` rather than `CGSim.old`
+- [x] Run the isolated 624-quantum/264-job smoke test; all 260 cluster-DAG edges
+      passed ordering validation
+- [x] Keep the LSST Stack off DGX for now; perform the real qgraph export on
+      Perlmutter or another supported Rubin environment
+
 ## Perlmutter scaffold-level run (rubin-plugin) — ~1 day
 
 Goal: shakedown of the DAG-gated `rubin-plugin` (commit 5df1afb) through the full
@@ -14,7 +36,8 @@ the scaffold as-is on a synthetic v0.2 campaign.
       committed `campaign-demo/` files are fine, but configs carry absolute paths)
 - [ ] Add `rubin_dag_config_perlmutter.json`: `/global/homes/...` paths,
       `output_file` on `/tmp` (Lustre SQLite WAL workaround, as in
-      `rubin_config_perlmutter.json`)
+      `rubin_config_perlmutter.json`); require an explicit site on production
+      groups and use `default_site=USDF` only for the synthetic demo
 - [ ] One-off shakedown: `cg-sim -c rubin_dag_config_perlmutter.json` in an
       interactive/sbatch job; verify coadd-after-warp ordering in the EVENTS db
       (same check as the local 2026-08-03 validation)
@@ -22,31 +45,58 @@ the scaffold as-is on a synthetic v0.2 campaign.
       `--dispatch-plugin` pointing at the rubin plugin and a v0.2 parameter block
       (`qgraph_file`/`clustering_file`/`campaign_file`/`resources_file`/
       `default_site` replacing `jobs_file`/`Num_of_Jobs`) so `make datagen-submit`
-      / `grpo-submit` can drive it; scenario knobs (degraded sites, link
-      bottlenecks) apply unchanged since they modify topology, not workload
+      / `grpo-submit` can drive it; cover SLAC, CC-IN2P3, LANCS, and RAL
+      compute queues and their Rucio/FTS data links
 - [ ] Confirm `CGSimDataGenerator.py` output on a DAG-gated EVENTS db (schema is
-      identical; job ids now 1000+ cluster jobs, timing has dependency structure)
+      identical; job ids now 1000+ cluster jobs, timing has dependency structure);
+      reject emitted compute sites outside the four canonical PanDA prefixes
 
 Context: this is the "scaffold-level" of the two next runs. The true
 Rubin-plugin-enabled run additionally waits on Raees's v1 (queue routing, failure
-model — see `docs/rubin_plugin_questions_raees.md`), possibly Paul (core hooks,
-depending on Wednesday's Q5/Q6 answers), and the real qgraph exporter +
-`resources.json` fits (Kenny).
+model — see `docs/rubin_plugin_questions_raees.md`), and the real qgraph exporter
+plus `resources.json` fits (Kenny). The v0.2 architecture no longer waits on Paul for
+core DAG or dynamic-injection hooks: release is plugin-side and rescue jobs are
+pre-materialized. A core file-creation hook is only needed later if consumer-side
+staging of parent products cannot be represented by the plugin.
+
+## Kenny: real qgraph exporter and resource fits
+
+- [ ] Pin exporter development to `lsst_distrib v30_0_4` plus exact
+      `rc2_subset`, `pipe_base`, `ctrl_bps`, and `drp_pipe` commits in provenance
+- [ ] Export the public HSC `rc2_subset` fixture as the v0.2 streaming bundle:
+      `qgraph_manifest.json`, `quanta.jsonl`, and `edges.jsonl`
+- [ ] Keep monolithic `qgraph_export.json` support only for small fixtures such as
+      `campaign-demo/`; update the production reader to stream JSONL
+- [ ] Add identifier sanitization for unreleased commissioning/LSSTCam exports;
+      do not emit real pre-release data IDs outside the rights environment without
+      explicit Rubin Data Policy Committee approval
+- [ ] Parse `payload.stdout` timing/RSS records and Butler dataset sizes, then fit
+      `resources.json` from PanDA records, stratified by SLAC, CC-IN2P3, LANCS,
+      and RAL, with all qgraph UUIDs and software versions in `fit_inputs`
+- [ ] Seed generic failure messages from PanDA Pilot `ErrorCodes`; fit Rubin-specific
+      `piloterrordiag` and log-tail templates from production samples as a separate
+      failure-model data artifact
+- [ ] Fit transfer and failure parameters per site/link; do not reuse aggregate
+      cross-facility rates
+- [ ] Replace the scaffold's collapsed `UKDF` SimGrid zone with distinct LANCS
+      and RAL zones, and add canonical mapping:
+      `SLAC→USDF`, `CC-IN2P3→FrDF`, `LANCS→LANCS`, `RAL→RAL`
 
 ---
 
-## Workflow DAG dependencies (~3–4 days)
+## Deferred core alternative: workflow DAG dependencies (~3–4 days)
 
-> **Partially superseded (2026-08-03)** by the `rubin-plugin` scaffold, which
+> **Superseded for v0.2 DAG release (2026-08-03)** by the `rubin-plugin` scaffold, which
 > achieves DAG-gated release plugin-side via the existing pending-job re-poll —
-> no `waiting` state or core changes needed. Still relevant below: the
+> no `waiting` state, dynamic job injection, or core changes are needed. Do not
+> implement the phases below for v0.2. Still potentially relevant later: the
 > `FileManager::on_file_created` hook idea, which is exactly what consumer-side
 > staging of parent products needs (rubin-plugin README, constraint 5).
 
-Currently all job input files are pre-staged in `site_info.json` before the
-simulation starts. Jobs execute independently with no awareness of upstream
-producers, so training data never captures realistic queue patterns like
-SingleFrame jobs backing up while waiting on ISR.
+In the legacy flat-workload path, all job input files are pre-staged in
+`site_info.json` before the simulation starts. Those jobs execute independently
+with no awareness of upstream producers. The v0.2 Rubin plugin supplies DAG
+gating without the core changes below.
 
 ### What to implement
 

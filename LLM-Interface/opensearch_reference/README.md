@@ -1,5 +1,13 @@
 # OpenSearch Reference Dump — rubinobs-opensearch (USDF)
 
+## Current project scope
+
+Use PanDA records whose `computingsite` matches `SLAC_Rubin_*`,
+`CC-IN2P3_Rubin_*`, `LANCS_Rubin_*`, or `RAL_Rubin_*` for fitting and validation.
+Fit each site/queue stratum separately. The HTCondor index is inventory evidence
+but is excluded from the target population. Rucio calibration is per link among
+the corresponding facility RSEs. Production cm-service activity data is not required.
+
 Extracted 2026-07-15 from the `rubinobs-opensearch` cluster (`opensearch-system` namespace,
 `usdf-opensearch.slac.stanford.edu`), via `kubectl port-forward svc/rubinobs-opensearch-coordinator 9200`.
 Admin credentials in secret `usdf-opensearch-admin-pw-*`.
@@ -12,9 +20,9 @@ Purpose: source material for the simulated-event → PanDA-job-record field mapp
 | File | Source | Notes |
 |---|---|---|
 | `panda_prod_test_mapping.json` | `GET panda_prod_test-2026-06/_mapping` | 99 mapped fields (classic PanDA jobsarchived schema); live docs carry ~128 fields (dynamic extras) |
-| `sample_job_finished.json` | 1 finished Rubin job | sanitized: produserid/produsername/pilotid/modificationhost/schedulerid/lockedby redacted |
-| `sample_jobs_failed.json` | 2 failed Rubin jobs (piloterrorcode 1305, transexitcode 139) | same sanitization |
-| `sample_rucio_transfer_done.json` | 2 `transfer-done` events from `rucio-events-000006` | payload carries src/dst RSE, bytes, timestamps |
+| `sample_job_finished.json` | 1 finished Rubin job | CC-IN2P3 target-site structural example; sanitized |
+| `sample_jobs_failed.json` | 2 failed Rubin jobs (piloterrorcode 1305, transexitcode 139) | CC-IN2P3 target-site examples; do not generalize their rates to other sites |
+| `sample_rucio_transfer_done.json` | 2 `transfer-done` events from `rucio-events-000006` | Target data-movement examples; payload carries src/dst RSE, bytes, timestamps |
 
 ## Index inventory (relevant to CGSim)
 
@@ -35,6 +43,7 @@ Purpose: source material for the simulated-event → PanDA-job-record field mapp
   (1305 "failed to execute payload" dominates: 83,322) + `transexitcode` + `piloterrordiag` (free text).
   Payload-level (quantum) failure detail is NOT in these records — it lives in payload stdout/logs.
 - Failure concentration is site-skewed: CC-IN2P3 queues account for ~97% of June failures
-  (106k of 145k in `CC-IN2P3_Rubin_8G` alone) — supports modeling site-level degradation events.
+  (106k of 145k in `CC-IN2P3_Rubin_8G` alone). This demonstrates why aggregate
+  rates are unsafe: fit CC-IN2P3 separately and do not generalize it to other sites.
 - `jobname` pattern `u_lsstgrid_{...}_{taskLabel}_{...}Z_{NN}_{clusterLabel}` carries the BPS
   cluster/task label — usable as the join key from PanDA records back to the clustering overlay (§5).
