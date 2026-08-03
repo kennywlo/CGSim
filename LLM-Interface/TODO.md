@@ -1,6 +1,47 @@
 # Datagen TODO
 
+## Perlmutter scaffold-level run (rubin-plugin) — ~1 day
+
+Goal: shakedown of the DAG-gated `rubin-plugin` (commit 5df1afb) through the full
+Perlmutter sbatch pipeline, producing DAG-realistic EVENTS traces the existing
+GRPO/SFT tooling can consume. Independent of Raees's v1 plugin work — this runs
+the scaffold as-is on a synthetic v0.2 campaign.
+
+- [ ] Build `libRubinDispatcherPlugin.so` on Perlmutter (same recipe as the
+      2026-06-02 build fixes, commit 172523a: CGSim install + SimGrid module;
+      plugin cmake needs `-DSimGrid_PATH` and CGSim discoverable)
+- [ ] Run `rubin-data/generate_campaign.py` on Perlmutter (or regenerate — the
+      committed `campaign-demo/` files are fine, but configs carry absolute paths)
+- [ ] Add `rubin_dag_config_perlmutter.json`: `/global/homes/...` paths,
+      `output_file` on `/tmp` (Lustre SQLite WAL workaround, as in
+      `rubin_config_perlmutter.json`)
+- [ ] One-off shakedown: `cg-sim -c rubin_dag_config_perlmutter.json` in an
+      interactive/sbatch job; verify coadd-after-warp ordering in the EVENTS db
+      (same check as the local 2026-08-03 validation)
+- [ ] Wire into the datagen pipeline: `ScenarioConfigGenerator.py` needs a
+      `--dispatch-plugin` pointing at the rubin plugin and a v0.2 parameter block
+      (`qgraph_file`/`clustering_file`/`campaign_file`/`resources_file`/
+      `default_site` replacing `jobs_file`/`Num_of_Jobs`) so `make datagen-submit`
+      / `grpo-submit` can drive it; scenario knobs (degraded sites, link
+      bottlenecks) apply unchanged since they modify topology, not workload
+- [ ] Confirm `CGSimDataGenerator.py` output on a DAG-gated EVENTS db (schema is
+      identical; job ids now 1000+ cluster jobs, timing has dependency structure)
+
+Context: this is the "scaffold-level" of the two next runs. The true
+Rubin-plugin-enabled run additionally waits on Raees's v1 (queue routing, failure
+model — see `docs/rubin_plugin_questions_raees.md`), possibly Paul (core hooks,
+depending on Wednesday's Q5/Q6 answers), and the real qgraph exporter +
+`resources.json` fits (Kenny).
+
+---
+
 ## Workflow DAG dependencies (~3–4 days)
+
+> **Partially superseded (2026-08-03)** by the `rubin-plugin` scaffold, which
+> achieves DAG-gated release plugin-side via the existing pending-job re-poll —
+> no `waiting` state or core changes needed. Still relevant below: the
+> `FileManager::on_file_created` hook idea, which is exactly what consumer-side
+> staging of parent products needs (rubin-plugin README, constraint 5).
 
 Currently all job input files are pre-staged in `site_info.json` before the
 simulation starts. Jobs execute independently with no awareness of upstream
