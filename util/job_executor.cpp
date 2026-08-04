@@ -230,6 +230,8 @@ void JOB_EXECUTOR::onJobAssignment(Job* job)
 
 void JOB_EXECUTOR::execute_job(Job* j)
 {
+  j->metadata["pending_output_writes"] = std::to_string(j->output_files.size());
+  j->metadata["outputs_complete"] = "false";
   auto exec_activity = Actions::exec_task_multi_thread_async(j);
   std::vector<sg4::IoPtr>   read_activities;
   std::vector<sg4::CommPtr> comm_activities;
@@ -317,4 +319,3 @@ void JOB_EXECUTOR::attach_callbacks()
   sg4::Engine::on_simulation_start_cb([](){dispatcher->onSimulationStart();});
   sg4::Engine::on_simulation_end_cb([]() {dispatcher->onSimulationEnd();});
 }
-

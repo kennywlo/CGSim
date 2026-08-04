@@ -28,10 +28,10 @@ public:
     static sg4::CommPtr  transfer_file_async(Job* j, const std::string& filename, const std::string& src_site, const std::string& dst_site, CGSim::FileTransferDecisionMode mode);
     static sg4::IoPtr    read_file_async(Job* j, const std::string& filename);
     static sg4::IoPtr    write_file_async(Job* j, const std::string& filename, const unsigned long long& size);
+    static void          release_ready_children(Job* j);
 
     inline static std::string dag_wakeup_msg = "Dependent job created";
 
 };
 
 #endif
-
