@@ -93,9 +93,11 @@ or cm-service integration.
 
 ## Kenny: Perlmutter readiness and real QGraph export
 
-The schema and synthetic fixtures are ready, but the repository does not yet provide
-a push-button Perlmutter QGraph workflow. This work is independent of Raees's v1
-plugin and can start immediately.
+The schema and synthetic fixtures are ready. The real QuantumGraph exporter and
+bundle validator are now implemented and verified against a real `rc2_subset`
+graph on Perlmutter (2026-08-03) -- see the "Real QuantumGraph export
+(Perlmutter)" section of `README.md` for exact commands, pinned versions, and
+results. This work is independent of Raees's v1 plugin.
 
 ### Available now
 
@@ -103,38 +105,40 @@ plugin and can start immediately.
 - [x] Synthetic `campaign-demo/` fixture and `generate_campaign.py`
 - [x] DAG ordering validator and DGX-verified Rubin scaffold plugin
 - [x] Existing flat-workload Perlmutter config as a path and `/tmp` SQLite example
+- [x] Perlmutter environment probe (`perlmutter-env.txt`) recording host
+      architecture, loaded modules, Python version, and exact `lsst_distrib`,
+      `pipe_base`, `ctrl_bps`, `drp_pipe`, `obs_subaru` revisions
+      (`lsst-products.txt`); pinned to `w_2026_31` since no `v30*` stable
+      release exists under `/cvmfs/sw.lsst.eu`
+- [x] Real QuantumGraph exporter (`rubin-data/qgraph_exporter.py`) streaming
+      `qgraph_manifest.json`, `quanta.jsonl`, `edges.jsonl`; monolithic
+      `qgraph_export.json` remains synthetic-fixture-only
+- [x] Standalone streaming bundle validator (`rubin-data/validate_bundle.py`,
+      pure stdlib): schema version, unique integer `qid`, edge referential
+      integrity, provenance completeness, line-by-line JSONL readability,
+      referenced-file existence, edge/graph structural consistency
+- [x] Tests against the real Butler repo (`rubin-data/tests/`): every node
+      exactly once, edge topology agrees with `QuantumGraph.graph`, edge
+      dataset types grounded in shared `DatasetRef`s, validator passes,
+      repeated exports are structurally deterministic, provenance carries all
+      pinned revisions
 
-### Prepare in this repository before the Perlmutter run
+### Still open
 
-- [ ] Add a Perlmutter environment probe that records host architecture, loaded
-      modules, Python version, LSST Stack version, Butler availability, and the exact
-      `pipe_base`, `ctrl_bps`, and `drp_pipe` revisions
-- [ ] Implement the real QuantumGraph exporter scaffold with outputs
-      `qgraph_manifest.json`, `quanta.jsonl`, and `edges.jsonl`; keep monolithic
-      `qgraph_export.json` only for small synthetic fixtures
-- [ ] Add streaming-bundle validation for schema version, unique integer `qid`, edge
-      referential integrity, provenance fields, and line-by-line readability
 - [ ] Add `rubin_dag_config_perlmutter.json` with configurable `/global/homes/...`
       paths and `output_file` under `/tmp`; do not reuse the existing flat-workload
       `rubin_config_perlmutter.json`
 - [ ] Add a Perlmutter build helper for CGSim/SimGrid and
-      `libRubinDispatcherPlugin.so`; remove DGX-specific install paths
+      `libRubinDispatcherPlugin.so`; remove DGX-specific install paths (explicitly
+      out of scope for the exporter task -- do not build SimGrid on Perlmutter yet)
 - [ ] Add a QGraph-specific Slurm wrapper and Make target. The current
       `datagen-submit`/`ScenarioConfigGenerator.py` path is legacy five-site only
 - [ ] Add a QGraph manifest entry carrying the dispatch-plugin path and v0.2
       parameters instead of `jobs_file`/`Num_of_Jobs`
-
-### Verify and run on Perlmutter
-
-- [ ] Confirm the NERSC account/project allocation, writable `$PSCRATCH`, and repo
-      checkout location
-- [ ] Locate `lsst_distrib v30_0_4`; if unavailable, select and pin the exact
-      installed weekly rather than silently changing versions
-- [ ] Locate or install the public HSC `rc2_subset` Butler repository and record the
-      exact `rc2_subset`, `pipe_base`, `ctrl_bps`, and `drp_pipe` revisions plus
-      pipeline YAML and input collections
-- [ ] Run the environment probe and save its output with the export provenance
-- [ ] Export `rc2_subset` to the v0.2 streaming bundle and run the bundle validator
+- [ ] Actually run `nightlyStep1`/`nightlyStep2*` via `pipetask run` (real
+      compute, not just `pipetask qgraph`) against `rc2_subset` so a
+      `nightlyStep3` (coadd) graph -- the originally-named fixture's actual
+      stage -- has real upstream products to build against
 - [ ] Build the Rubin scaffold plugin and run the synthetic campaign through Slurm
 - [ ] Validate coadd-after-warp ordering and all cluster-DAG edges in the EVENTS DB
 - [ ] Confirm `CGSimDataGenerator.py` accepts the DAG-gated EVENTS DB and rejects

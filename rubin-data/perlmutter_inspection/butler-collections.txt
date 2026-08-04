@@ -1,0 +1,50 @@
+                     Name                          Type
+---------------------------------------------- -----------
+HSC/RC2/defaults                               CHAINED
+  HSC/raw/RC2                                  CHAINED
+    HSC/raw/RC2/9615                           TAGGED
+    HSC/raw/RC2/9697                           TAGGED
+    HSC/raw/RC2/9813                           TAGGED
+  HSC/calib                                    CHAINED
+    HSC/calib/gen2/20180117                    CALIBRATION
+    HSC/calib/DM-28636                         CALIBRATION
+    HSC/calib/gen2/20180117/unbounded          RUN
+    HSC/calib/DM-28636/unbounded               RUN
+  HSC/masks                                    CHAINED
+    HSC/masks/s18a                             RUN
+  HSC/fgcmcal/lut/RC2                          CHAINED
+    HSC/fgcmcal/lut/RC2/DM-28636               RUN
+  refcats                                      CHAINED
+    refcats/DM-28636                           RUN
+    refcats/DM-39298                           RUN
+  skymaps                                      RUN
+HSC/RC2_subset/defaults                        CHAINED
+  HSC/raw/RC2_subset                           TAGGED
+  HSC/calib                                    CHAINED
+    HSC/calib/gen2/20180117                    CALIBRATION
+    HSC/calib/DM-28636                         CALIBRATION
+    HSC/calib/gen2/20180117/unbounded          RUN
+    HSC/calib/DM-28636/unbounded               RUN
+  HSC/masks                                    CHAINED
+    HSC/masks/s18a                             RUN
+  HSC/fgcmcal/lut/RC2                          CHAINED
+    HSC/fgcmcal/lut/RC2/DM-28636               RUN
+  refcats                                      CHAINED
+    refcats/DM-28636                           RUN
+    refcats/DM-39298                           RUN
+  skymaps                                      RUN
+HSC/calib                                      CHAINED
+  HSC/calib/gen2/20180117                      CALIBRATION
+  HSC/calib/DM-28636                           CALIBRATION
+  HSC/calib/gen2/20180117/unbounded            RUN
+  HSC/calib/DM-28636/unbounded                 RUN
+HSC/calib/DM-28636                             CALIBRATION
+HSC/calib/DM-28636/curated/20130131T000000Z    RUN
+HSC/calib/DM-28636/curated/20140601T000000Z    RUN
+HSC/calib/DM-28636/unbounded                   RUN
+HSC/calib/gen2/20180117                        CALIBRATION
+HSC/calib/gen2/20180117/20140131T000000Z       RUN
+HSC/calib/gen2/20180117/20140325T000000Z       RUN
+HSC/calib/gen2/20180117/20140328T000000Z       RUN
+HSC/calib/gen2/20180117/20140329T000000Z       RUN
+HSC/calib/gen2/20180117/20140402T000000Z       RUN

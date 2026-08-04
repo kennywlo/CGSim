@@ -1,0 +1,15 @@
+
+lsst_distrib
+   g00e868bf88+c1824e70d0 	w_latest w_2026_31 current setup
+
+pipe_base
+   g954f02917a+aa127417cf 	d_2026_07_27 d_2026_07_28 current d_latest d_2026_07_29 w_latest w_2026_31 setup
+
+ctrl_bps
+   ge3e32f3943+dd41cd23f8 	d_2026_07_29 w_latest w_2026_31 current d_2026_07_27 d_2026_07_28 d_latest setup
+
+drp_pipe
+   gc6b104cb6d+dad5072d3c 	current w_2026_31 w_latest setup
+
+obs_subaru
+   g4db92921ce+973196f922 	current w_2026_31 w_latest setup

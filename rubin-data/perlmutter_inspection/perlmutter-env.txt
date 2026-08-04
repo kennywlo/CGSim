@@ -1,0 +1,36 @@
+2026-08-03T20:30:53-07:00
+login14
+Linux login14 6.4.0-150600.23.103_15.0.27-cray_shasta_c #1 SMP Mon 20 Jul 2026 09:47:42 PDT (f09123b) x86_64 x86_64 x86_64 GNU/Linux
+NERSC_HOST=perlmutter
+PSCRATCH=/pscratch/sd/k/kennylo
+craype-x86-milan
+libfabric/1.22.0
+craype-network-ofi
+xpmem/2.11.5-1.3_g73ade43320bc
+gcc-native/14
+PrgEnv-gnu/8.6.0
+cray-dsmml/0.3.1
+cray-libsci/25.09.0
+cray-mpich/9.0.1
+craype/2.7.35
+perftools-base/25.09.0
+cpe/25.09
+cudatoolkit/12.9
+craype-accel-nvidia80
+gpu/1.0
+sqs/2.0
+darshan/default
+Lmod has detected the following error: Unable to find: "simgrid".
+
+
+
+Lmod has detected the following error: Unable to find: "lsst".
+
+
+
+/opt/cray/pe/gcc-native/14/bin/gcc
+/opt/cray/pe/gcc-native/14/bin/g++
+/usr/bin/cmake
+/usr/bin/python3
+Python 3.6.15
+drwxr-xr-x 8 cvmfs trusted 4096 Jun  5  2020 /cvmfs/sw.lsst.eu

@@ -25,6 +25,121 @@ calibration population for the PanDA/QG run unless filtered to PanDA semantics
 and the canonical site identities above. See
 `rubin_campaign_schema_v0.2.md` for the active contract.
 
+## Real QuantumGraph export (Perlmutter)
+
+`rubin-data/qgraph_exporter.py` and `rubin-data/validate_bundle.py` implement the
+schema-section-4 streaming bundle (`qgraph_manifest.json`, `quanta.jsonl`,
+`edges.jsonl`) against a real LSST QuantumGraph, replacing the synthetic
+`campaign-demo/qgraph_export.json` for production exports. See
+`rubin_campaign_schema_v0.2.md` section 4 for the schema and
+`docs/raees_rubin_plugin_compatibility.md` for how the plugin consumes it.
+
+**Pinned environment** (established 2026-08-03 on Perlmutter; see
+`rubin-data/perlmutter_inspection/perlmutter-env.txt` and `lsst-products.txt`):
+
+```bash
+export LSST_RELEASE_DIR=/cvmfs/sw.lsst.eu/almalinux-x86_64/lsst_distrib/w_2026_31
+source "$LSST_RELEASE_DIR/loadLSST.bash"
+setup lsst_distrib
+setup obs_subaru
+```
+
+No `v30*` stable release exists under `/cvmfs/sw.lsst.eu`; `w_2026_31` is the
+newest weekly and is pinned as the exporter baseline. Product revisions
+(recorded in every export's provenance):
+
+| Product | Revision |
+|---|---|
+| `lsst_distrib` | `g00e868bf88+c1824e70d0` |
+| `pipe_base` | `g954f02917a+aa127417cf` |
+| `ctrl_bps` | `ge3e32f3943+dd41cd23f8` |
+| `drp_pipe` | `gc6b104cb6d+dad5072d3c` |
+| `obs_subaru` | `g4db92921ce+973196f922` |
+
+Also under `rubin-data/perlmutter_inspection/`: `butler-collections.txt` and
+`butler-dataset-types.txt` (real `butler query-collections`/`query-dataset-types`
+output against `rc2_subset/SMALL_HSC`) and `qgraph-inspection-regenerated.txt`
+(the working `QuantumGraph` API introspection this exporter's field choices are
+based on -- node/edge counts, task labels, data IDs, input/output `DatasetRef`
+structure).
+
+**Fixture:** `rc2_subset` at commit `432ea10`, Butler repo
+`$HOME/llm-apps/app/rc2_subset/SMALL_HSC` (`butler.yaml` + `gen3.sqlite3`,
+already populated — no separate Butler repository needs to be downloaded).
+
+**The committed `central_six_coadd_9813.qgraph` does not load under `w_2026_31`.**
+It was pickled 2021-06-11 by an old `daf_butler`; the current stack removed the
+`lsst.daf.butler.core` module layout it used *and* the `unpickleInstanceMethod`
+reducer it depends on for bound methods — a genuine format break, not an API
+version mismatch. A bounded module-alias shim got past three renamed
+submodules before hitting the unrecoverable reducer; see
+`rubin-data/perlmutter_inspection/qgraph-inspection.txt` for the traceback and
+`qgraph_exporter.load_quantum_graph`'s docstring for the fallback chain that
+*is* supported (format-version-1 graphs missing only an embedded
+`DimensionUniverse`, which is the actual common case for graphs from
+~2022 onward). Rebuild a real graph from the same Butler repo instead:
+
+```bash
+pipetask qgraph \
+  -b "$RC2_REPO" \
+  -i HSC/RC2_subset/defaults \
+  -o "u/$USER/RC2_subset/qgraph_regen_step1" \
+  -p "$DRP_PIPE_DIR/pipelines/HSC/DRP-RC2_subset.yaml#nightlyStep1" \
+  -q "$PSCRATCH/cgsim-rubin/artifacts/central_six_step1_9813.qgraph"
+```
+
+(`nightlyStep3`, the coadd subset the original fixture's name implies, builds
+an *empty* graph in a fresh repo — it needs warp/visit-summary products from
+steps 1–2, which have never actually been run here. `nightlyStep1`
+(`isr`, `calibrateImage`, `transformPreSourceTable`) runs directly off the
+raw+calib data already in the repo: 720 real quanta over 240 detector-visits.)
+
+**Run the exporter:**
+
+```bash
+cd rubin-data
+python qgraph_exporter.py \
+  --qgraph "$PSCRATCH/cgsim-rubin/artifacts/central_six_step1_9813.qgraph" \
+  --repo "$HOME/llm-apps/app/rc2_subset/SMALL_HSC" \
+  --rc2-commit 432ea10 \
+  --out-dir "$PSCRATCH/cgsim-rubin/artifacts/rc2_subset_nightlyStep1_export/run1"
+```
+
+`--sanitize` hashes non-dimension `data_id` values with a salted SHA-256
+(`instrument`/`band`/`physical_filter`/`skymap` stay legible); not needed for
+`rc2_subset` since public HSC identifiers are not proprietary (RDO-013 v1.2.5
+DPOL-520), only for unreleased commissioning/LSSTCam exports.
+
+**Validate a bundle** (pure stdlib, no LSST environment required):
+
+```bash
+python validate_bundle.py "$PSCRATCH/cgsim-rubin/artifacts/rc2_subset_nightlyStep1_export/run1/qgraph_manifest.json"
+```
+
+**Tests:**
+
+```bash
+python -m pytest rubin-data/tests/test_validate_bundle.py -v      # pure stdlib, always runs
+python -m pytest rubin-data/tests/test_qgraph_exporter.py -v      # requires the activated LSST env above
+```
+
+**Verified 2026-08-03** against the real `central_six_step1_9813.qgraph`
+(720 quanta / 480 edges / 35 dataset types / 3 tasks, from the real
+`rc2_subset` Butler repo, not synthetic data):
+
+- 14/14 validator unit tests pass, 7/7 exporter integration tests pass
+  (every node appears exactly once; every edge references existing qids and
+  a real `QuantumGraph.graph` edge; every edge's `dataset_type` is grounded
+  in a DatasetRef shared between the producer's outputs and the consumer's
+  inputs; the validator passes on the real export; provenance carries all
+  five pinned revisions plus the `rc2_subset` commit)
+- Two independent exports of the same graph are byte-identical in
+  `quanta.jsonl` and `edges.jsonl`, and identical in `qgraph_manifest.json`
+  apart from the `exported_at` timestamp
+- `validate_bundle.py` CLI: `OK: bundle is valid`
+
+---
+
 ## DGX Spark development environment
 
 DGX Spark is the development, fitting, datagen, and model-work environment. The

@@ -1,0 +1,13 @@
+Traceback (most recent call last):
+  File "<stdin>", line 7, in <module>
+  File "/cvmfs/sw.lsst.eu/almalinux-x86_64/lsst_distrib/w_2026_31/conda/envs/lsst-scipipe-13.1.0-exact/share/eups/Linux64/pipe_base/g954f02917a+aa127417cf/python/lsst/pipe/base/graph/graph.py", line 977, in loadUri
+    qgraph = loader.load(universe, nodes, graphID)
+  File "/cvmfs/sw.lsst.eu/almalinux-x86_64/lsst_distrib/w_2026_31/conda/envs/lsst-scipipe-13.1.0-exact/share/eups/Linux64/pipe_base/g954f02917a+aa127417cf/python/lsst/pipe/base/graph/_loadHelpers.py", line 233, in load
+    graph = runner.run(self.deserializer.constructGraph, nodeSet, _readBytes, universe)
+  File "/cvmfs/sw.lsst.eu/almalinux-x86_64/lsst_distrib/w_2026_31/conda/envs/lsst-scipipe-13.1.0-exact/share/eups/Linux64/daf_butler/g0bf247e334+fb650ae051/python/lsst/daf/butler/persistence_context.py", line 203, in run
+    result = self._ctx.run(self._functionRunner, function, *args, **kwargs)  # type: ignore
+  File "/cvmfs/sw.lsst.eu/almalinux-x86_64/lsst_distrib/w_2026_31/conda/envs/lsst-scipipe-13.1.0-exact/share/eups/Linux64/daf_butler/g0bf247e334+fb650ae051/python/lsst/daf/butler/persistence_context.py", line 166, in _functionRunner
+    result = function(*args, **kwargs)
+  File "/cvmfs/sw.lsst.eu/almalinux-x86_64/lsst_distrib/w_2026_31/conda/envs/lsst-scipipe-13.1.0-exact/share/eups/Linux64/pipe_base/g954f02917a+aa127417cf/python/lsst/pipe/base/graph/_versionDeserializers.py", line 245, in constructGraph
+    qNode = pickle.loads(dump)
+ModuleNotFoundError: No module named 'lsst.daf.butler.core'

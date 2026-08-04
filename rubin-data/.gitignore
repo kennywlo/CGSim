@@ -1,2 +1,11 @@
 output.db
 rubin_dag_output.db
+__pycache__/
+*.pyc
+.pytest_cache/
+*.qgraph
+*.qg
+*.db
+*.db-shm
+*.db-wal
+*.swp
