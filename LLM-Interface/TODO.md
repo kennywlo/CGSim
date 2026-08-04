@@ -22,76 +22,153 @@ older datasets.
 - [x] Keep the LSST Stack off DGX for now; perform the real qgraph export on
       Perlmutter or another supported Rubin environment
 
-## Perlmutter scaffold-level run (rubin-plugin) — ~1 day
+## Raees: Rubin PanDA plugin v1
 
-Goal: shakedown of the DAG-gated `rubin-plugin` (commit 5df1afb) through the full
-Perlmutter sbatch pipeline, producing DAG-realistic EVENTS traces the existing
-GRPO/SFT tooling can consume. Independent of Raees's v1 plugin work — this runs
-the scaffold as-is on a synthetic v0.2 campaign.
+Repository: `/home/kennylo/llm-apps/app/Rubin-Plugin`. DGX compatibility work is on
+local branch `dgx-compat`; the isolated CGSim correctness fix is on
+`dgx-output-barrier`. See `docs/raees_rubin_plugin_compatibility.md` for the verified
+build, smoke-test result, and detailed gap review.
 
-- [ ] Build `libRubinDispatcherPlugin.so` on Perlmutter (same recipe as the
-      2026-06-02 build fixes, commit 172523a: CGSim install + SimGrid module;
-      plugin cmake needs `-DSimGrid_PATH` and CGSim discoverable)
-- [ ] Run `rubin-data/generate_campaign.py` on Perlmutter (or regenerate — the
-      committed `campaign-demo/` files are fine, but configs carry absolute paths)
-- [ ] Add `rubin_dag_config_perlmutter.json`: `/global/homes/...` paths,
-      `output_file` on `/tmp` (Lustre SQLite WAL workaround, as in
-      `rubin_config_perlmutter.json`); require an explicit site on production
-      groups and use `default_site=USDF` only for the synthetic demo
-- [ ] One-off shakedown: `cg-sim -c rubin_dag_config_perlmutter.json` in an
-      interactive/sbatch job; verify coadd-after-warp ordering in the EVENTS db
-      (same check as the local 2026-08-03 validation)
-- [ ] Wire into the datagen pipeline: `ScenarioConfigGenerator.py` needs a
-      `--dispatch-plugin` pointing at the rubin plugin and a v0.2 parameter block
-      (`qgraph_file`/`clustering_file`/`campaign_file`/`resources_file`/
-      `default_site` replacing `jobs_file`/`Num_of_Jobs`) so `make datagen-submit`
-      / `grpo-submit` can drive it; cover SLAC, CC-IN2P3, LANCS, and RAL
-      compute queues and their Rucio/FTS data links
-- [ ] Confirm `CGSimDataGenerator.py` output on a DAG-gated EVENTS db (schema is
-      identical; job ids now 1000+ cluster jobs, timing has dependency structure);
-      reject emitted compute sites outside the four canonical PanDA prefixes
+Scope is PanDA/BPS only across SLAC, CC-IN2P3, LANCS, and RAL. Do not add HTCondor
+or cm-service integration.
 
-Context: this is the "scaffold-level" of the two next runs. The true
-Rubin-plugin-enabled run additionally waits on Raees's v1 (queue routing, failure
-model — see `docs/rubin_plugin_questions_raees.md`), and the real qgraph exporter
-plus `resources.json` fits (Kenny). The v0.2 architecture no longer waits on Paul for
-core DAG or dynamic-injection hooks: release is plugin-side and rescue jobs are
-pre-materialized. A core file-creation hook is only needed later if consumer-side
-staging of parent products cannot be represented by the plugin.
+### Completed compatibility baseline
 
-## Kenny: real qgraph exporter and resource fits
+- [x] Build the plugin on DGX against the isolated `dag_dependencies` CGSim checkout
+- [x] Complete the supplied 100-job graph and validate all 117 DAG edges
+- [x] Fix child release so it waits for every parent's output writes, eliminating
+      the missing-generated-input race
+- [x] Add portable JSON discovery, current custom-parameter access, and a Linux/DGX
+      `.so` configuration on the local compatibility branch
 
-- [ ] Pin exporter development to `lsst_distrib v30_0_4` plus exact
-      `rc2_subset`, `pipe_base`, `ctrl_bps`, and `drp_pipe` commits in provenance
-- [ ] Export the public HSC `rc2_subset` fixture as the v0.2 streaming bundle:
-      `qgraph_manifest.json`, `quanta.jsonl`, and `edges.jsonl`
-- [ ] Keep monolithic `qgraph_export.json` support only for small fixtures such as
-      `campaign-demo/`; update the production reader to stream JSONL
-- [ ] Add identifier sanitization for unreleased commissioning/LSSTCam exports;
-      do not emit real pre-release data IDs outside the rights environment without
-      explicit Rubin Data Policy Committee approval
+### P0 — required for Raees's v1
+
+- [ ] Review and commit or rework the `dgx-compat` portability changes in the Rubin
+      Plugin repository
+- [ ] Port/rebase native DAG support onto current CGSim; upstream the output-write
+      barrier with automated tests for chains, fan-in, zero-output jobs, and failed
+      parents
+- [ ] Replace the pre-clustered `jobs` JSON-only input with the v0.2 contract:
+      `qgraph_manifest.json`, streaming `quanta.jsonl`, `edges.jsonl`,
+      `clustering.json`, campaign metadata, and fitted resources
+- [ ] Preserve qgraph, quantum, cluster, task/resource, PanDA attempt, and BPS rescue
+      identifiers through scheduling and output
+- [ ] Replace `Site0`–`Site4` with `SLAC_Rubin_*`, `CC-IN2P3_Rubin_*`,
+      `LANCS_Rubin_*`, and `RAL_Rubin_*`; route by BPS memory/CPU requests using
+      per-queue caps supplied from CRIC
+- [ ] Keep the existing `EVENTS` stream and additionally emit PanDA-compatible job
+      records plus pilot-log artifacts for AskPanDA `metadata_search` and `log_query`
+- [ ] Implement job/quantum failure and downstream `failed_upstream` propagation;
+      children of failed parents must terminate observably rather than wait forever
+- [ ] Pass both acceptance fixtures: the supplied 100-job/117-edge graph and this
+      repo's 624-quantum/264-cluster graph, with zero dependency-order violations
+
+### P1 — after the v1 acceptance gate
+
+- [ ] Separate PanDA/JEDI retry attempts from BPS restart/rescue qgraphs and retain
+      explicit linkage among original jobs, attempts, and rescue jobs
+- [ ] Model per-site Rucio/FTS transfers among the four Rubin facilities and support
+      multiple qgraphs/campaign groups
+- [ ] Consume site/queue-specific resource and failure fits; do not pool rates across
+      facilities
+- [ ] Add direct xrootd access, transfer concurrency, and site outage/degradation
+      only after the staged-transfer model is validated
+
+### Shared decisions before merging v1
+
+- [ ] Raees + Kenny + Paul: choose native core DAG release or the pinned plugin-side
+      pending gate after the current-CGSim port passes both acceptance fixtures; keep
+      only one production path
+- [ ] Raees + Kenny: confirm `_Merge`/`_Multi` queue rules, `failed_upstream` output
+      terminology, attempt/rescue linkage fields, and whether site outages are v1 or
+      deferred
+
+### Inputs Kenny supplies to Raees
+
+- [ ] Public HSC `rc2_subset` streaming QGraph fixture with pinned provenance
+- [ ] `resources.json` and transfer/failure fits stratified by facility and queue
+- [ ] Canonical PanDA Pilot error-code messages plus Rubin-specific diagnostic and
+      log-tail templates
+- [ ] Four-facility topology and canonical site/queue mapping
+
+## Kenny: Perlmutter readiness and real QGraph export
+
+The schema and synthetic fixtures are ready, but the repository does not yet provide
+a push-button Perlmutter QGraph workflow. This work is independent of Raees's v1
+plugin and can start immediately.
+
+### Available now
+
+- [x] v0.2 manifest/JSONL contract and provenance requirements
+- [x] Synthetic `campaign-demo/` fixture and `generate_campaign.py`
+- [x] DAG ordering validator and DGX-verified Rubin scaffold plugin
+- [x] Existing flat-workload Perlmutter config as a path and `/tmp` SQLite example
+
+### Prepare in this repository before the Perlmutter run
+
+- [ ] Add a Perlmutter environment probe that records host architecture, loaded
+      modules, Python version, LSST Stack version, Butler availability, and the exact
+      `pipe_base`, `ctrl_bps`, and `drp_pipe` revisions
+- [ ] Implement the real QuantumGraph exporter scaffold with outputs
+      `qgraph_manifest.json`, `quanta.jsonl`, and `edges.jsonl`; keep monolithic
+      `qgraph_export.json` only for small synthetic fixtures
+- [ ] Add streaming-bundle validation for schema version, unique integer `qid`, edge
+      referential integrity, provenance fields, and line-by-line readability
+- [ ] Add `rubin_dag_config_perlmutter.json` with configurable `/global/homes/...`
+      paths and `output_file` under `/tmp`; do not reuse the existing flat-workload
+      `rubin_config_perlmutter.json`
+- [ ] Add a Perlmutter build helper for CGSim/SimGrid and
+      `libRubinDispatcherPlugin.so`; remove DGX-specific install paths
+- [ ] Add a QGraph-specific Slurm wrapper and Make target. The current
+      `datagen-submit`/`ScenarioConfigGenerator.py` path is legacy five-site only
+- [ ] Add a QGraph manifest entry carrying the dispatch-plugin path and v0.2
+      parameters instead of `jobs_file`/`Num_of_Jobs`
+
+### Verify and run on Perlmutter
+
+- [ ] Confirm the NERSC account/project allocation, writable `$PSCRATCH`, and repo
+      checkout location
+- [ ] Locate `lsst_distrib v30_0_4`; if unavailable, select and pin the exact
+      installed weekly rather than silently changing versions
+- [ ] Locate or install the public HSC `rc2_subset` Butler repository and record the
+      exact `rc2_subset`, `pipe_base`, `ctrl_bps`, and `drp_pipe` revisions plus
+      pipeline YAML and input collections
+- [ ] Run the environment probe and save its output with the export provenance
+- [ ] Export `rc2_subset` to the v0.2 streaming bundle and run the bundle validator
+- [ ] Build the Rubin scaffold plugin and run the synthetic campaign through Slurm
+- [ ] Validate coadd-after-warp ordering and all cluster-DAG edges in the EVENTS DB
+- [ ] Confirm `CGSimDataGenerator.py` accepts the DAG-gated EVENTS DB and rejects
+      compute sites outside the four canonical PanDA prefixes
+
+### Kenny: production resource, failure, and topology inputs
+
+- [ ] Obtain enough PanDA/OpenSearch records for fitting; the committed mapping and
+      sample documents are schema references, not a calibration population
 - [ ] Parse `payload.stdout` timing/RSS records and Butler dataset sizes, then fit
-      `resources.json` from PanDA records, stratified by SLAC, CC-IN2P3, LANCS,
-      and RAL, with all qgraph UUIDs and software versions in `fit_inputs`
+      `resources.json` separately for SLAC, CC-IN2P3, LANCS, and RAL, recording all
+      qgraph UUIDs and software versions in `fit_inputs`
 - [ ] Seed generic failure messages from PanDA Pilot `ErrorCodes`; fit Rubin-specific
-      `piloterrordiag` and log-tail templates from production samples as a separate
-      failure-model data artifact
-- [ ] Fit transfer and failure parameters per site/link; do not reuse aggregate
-      cross-facility rates
-- [ ] Replace the scaffold's collapsed `UKDF` SimGrid zone with distinct LANCS
-      and RAL zones, and add canonical mapping:
-      `SLAC→USDF`, `CC-IN2P3→FrDF`, `LANCS→LANCS`, `RAL→RAL`
+      `piloterrordiag` and log-tail templates as a separate data artifact
+- [ ] Fit transfer and failure parameters per site, queue, and link; do not reuse
+      aggregate cross-facility rates
+- [ ] Replace the scaffold's collapsed `UKDF` zone with distinct LANCS and RAL zones
+      and add canonical mapping: `SLAC→USDF`, `CC-IN2P3→FrDF`, `LANCS→LANCS`,
+      `RAL→RAL`
+- [ ] Apply identifier sanitization to unreleased commissioning/LSSTCam exports; do
+      not emit real pre-release data IDs outside the rights environment without
+      explicit Rubin Data Policy Committee approval
 
 ---
 
 ## Deferred core alternative: workflow DAG dependencies (~3–4 days)
 
-> **Superseded for v0.2 DAG release (2026-08-03)** by the `rubin-plugin` scaffold, which
+> **Superseded for the pinned v0.2 baseline (2026-08-03)** by the `rubin-plugin` scaffold, which
 > achieves DAG-gated release plugin-side via the existing pending-job re-poll —
 > no `waiting` state, dynamic job injection, or core changes are needed. Do not
-> implement the phases below for v0.2. Still potentially relevant later: the
-> `FileManager::on_file_created` hook idea, which is exactly what consumer-side
-> staging of parent products needs (rubin-plugin README, constraint 5).
+> implement the phases below directly. Raees's `dag_dependencies` branch is now the
+> concrete native-core candidate; it supports produced-file inputs after the local
+> output-write barrier fix. Evaluate that branch through the integration gate above
+> instead of starting a second core design.
 
 In the legacy flat-workload path, all job input files are pre-staged in
 `site_info.json` before the simulation starts. Those jobs execute independently

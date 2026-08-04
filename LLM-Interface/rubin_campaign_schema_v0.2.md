@@ -129,7 +129,16 @@ Example `edges.jsonl` record:
 
 - `qid`: plain int, unique per bundle. `resource_key` lives on tasks (rule: `{task_label}:{instrument}`) and indexes §6.
 - `bytes_est` nullable; per-type size distributions (§6) are the fallback. Edges carry `dataset_type` to bind transfer sizes.
-- **Edges are consumed by the plugin, not CGSim core** (verified against core source 2026-07-15): core `getWorkload()` runs once pre-simulation over a flat priority queue and `Job` has no dependency fields. Jobs left `"pending"` by `assignJob()` are re-polled after every execution completion, so v0.2 gates dependency release plugin-side. Rescue jobs are pre-materialized in the initial queue and conditionally released; dynamic job injection and a CGSim core extension are deferred beyond v0.2.
+- **Pinned v0.2 baseline:** edges are consumed by the plugin, not current CGSim
+  core. Core `getWorkload()` runs once over a flat priority queue and `Job` has no
+  dependency fields, so jobs left `"pending"` by `assignJob()` are re-polled after
+  execution completion. Rescue jobs are pre-materialized and gated.
+- **Native-core candidate (reviewed 2026-08-03):** Raees's separate
+  `dag_dependencies` branch adds parent/child fields and delayed child insertion and
+  successfully ran its 100-job/117-edge fixture on DGX after a required fix to wait
+  for all parent output writes before child release. It is not part of current CGSim
+  main and does not replace the pinned baseline until rebased and validated against
+  the v0.2 fixture. See `docs/raees_rubin_plugin_compatibility.md`.
 
 ## 5. Clustering overlay: `clustering.json`
 
@@ -274,7 +283,10 @@ dynamic rescue-job injection; distribution egress to `DESC_*`/`IDAC_*` RSEs.
 
 ### Resolved for v0.2
 
-1. **DAG and rescue release:** dependency-triggered release is plugin-side through the existing pending-job re-poll. Rescue jobs are pre-materialized and gated. No CGSim core extension is required for v0.2.
+1. **DAG and rescue release:** the pinned v0.2 baseline uses plugin-side pending-job
+   re-poll and pre-materialized rescue jobs. Raees's tested native-DAG branch is the
+   candidate successor, pending rebase, output-barrier upstreaming, and validation
+   against the v0.2 fixture.
 2. **Exporter baseline:** develop against stable `lsst_distrib v30_0_4` and the public HSC `rc2_subset`; record exact `rc2_subset`, `pipe_base`, `ctrl_bps`, and `drp_pipe` commit hashes in exporter provenance. If Perlmutter cannot provide that release, pin the exact installed weekly and all four commits rather than silently changing the baseline.
 3. **Data identifiers:** public HSC `rc2_subset` identifiers are the development fixture. RDO-013 v1.2.5 DPOL-520 says Butler dataset existence and registry dimension metadata in a Data Release are not themselves proprietary. Unreleased commissioning/LSSTCam identifiers are anonymized by default unless the Rubin Data Policy Committee explicitly approves their sharing.
 4. **Serialization:** production qgraph exports use the manifest plus JSONL bundle defined in §4. Monolithic JSON is test-fixture-only.

@@ -1,11 +1,16 @@
-# Rubin PanDA plugin — implementation questions for Raees (Wed 2026-08-05)
+# Rubin PanDA plugin — confirmations for Raees (Wed 2026-08-05)
 
-Context: `dispatch_plugins/rubin-plugin/` is a working scaffold implementing the DAG
-scheme from `rubin_campaign_schema_v0.2.md` (verified end-to-end 2026-08-03; see its
-README for design and known core constraints). These questions cover what remains for
-the actual plugin. Several were simplified against public PanDA/Rubin docs — where the
-production behavior is documented, the question is just "any objection to mirroring it?"
-(sources at bottom).
+Context: Raees's repository at `/home/kennylo/llm-apps/app/Rubin-Plugin` was reviewed
+and smoke-tested on DGX on 2026-08-03. It supplies a native-DAG prototype through
+CGSim's `dag_dependencies` branch; see `raees_rubin_plugin_compatibility.md` for the
+verified result and prioritized gaps. `dispatch_plugins/rubin-plugin/` remains a
+working scaffold implementing the DAG scheme from `rubin_campaign_schema_v0.2.md`
+(verified end-to-end 2026-08-03; see its README for design and known core
+constraints).
+
+This document separates settled implementation requirements from decisions that
+actually need Raees's answer. If a proposed default below is acceptable, a simple
+"accept" is enough; only exceptions need a new design discussion.
 
 ## Fixed scope and decisions
 
@@ -14,71 +19,53 @@ production behavior is documented, the question is just "any objection to mirror
 - data movement: Rucio/FTS links among the corresponding facility RSEs
 - calibration: PanDA records and pilot logs fitted separately by site/queue; no cm-service
   activity-log dependency
-- dependency release: plugin-side pending-job gating
+- dependency release: plugin-side pending-job gating is the pinned v0.2 baseline;
+  native core DAG is the candidate, pending rebase and output-barrier tests
 - rescue: pre-materialized gated clusters for v0.2
 - interchange: manifest + `quanta.jsonl` + `edges.jsonl`
 
-## Scheduling (queue routing)
+## Settled implementation requirements
 
-1. Queue routing is documented (panda.lsst.io): BPS `requestMemory` maps to the
-   `<site>_Rubin_<size>G` queue with minRSS < requestMemory <= maxRSS (e.g. 5000MB →
-   `_8G`). Plan is to mirror exactly that rule, with per-queue caps from CRIC. Any
-   objection? Apply to `SLAC_Rubin_*`, `CC-IN2P3_Rubin_*`, `LANCS_Rubin_*`, and
-   `RAL_Rubin_*`. Open sub-question:
-   which QG clusters require the special `_Merge` / `_Multi` queues in v1?
-2. Memory-retry is also documented (PanDA brokerage): on an OOM failure, JEDI raises
-   ramCount to the next rung of [1,2,3,4,6,8] GB above max(maxPSS, current), which
-   re-routes the retry to a higher tier. OK to hard-code that ladder as the spill
-   mechanism (non-OOM failures retry in the same tier)?
+- **Queue routing:** map BPS `requestMemory` to the documented
+  `<site>_Rubin_<size>G` tier using CRIC-derived caps for SLAC, CC-IN2P3, LANCS,
+  and RAL. This is an acceptance requirement, not an open design question.
+- **OOM retry:** model the PanDA/JEDI memory escalation separately from non-OOM
+  retries. Keep the memory-tier ladder in versioned configuration rather than
+  hard-coding it in C++.
+- **Failure records:** emit explicit records for downstream work that cannot run;
+  never leave children waiting forever or omit them silently.
+- **Input contract:** consume `qgraph_manifest.json`, streaming `quanta.jsonl`,
+  `edges.jsonl`, and `clustering.json` without retaining duplicate full-graph
+  representations.
+- **Outputs:** preserve the existing `EVENTS` stream and add PanDA-compatible job
+  records, including synthesized `pandaid` and `jobname` join keys, plus pilot-log
+  artifacts. Do not replace `EVENTS` in v1.
+- **Pilot diagnostics:** Kenny supplies generic error-code messages and fitted Rubin
+  diagnostic/log-tail templates; the plugin consumes them and emits a coherent
+  `(piloterrorcode, piloterrordiag, log tail)` triple.
+- **Data movement:** start with per-link Rucio/FTS-style staged transfers among the
+  four facilities. Direct xrootd access, concurrency limits, and outage behavior are
+  P1 unless Raees identifies a blocker.
 
-## Failure model
+## Confirmations needed from Raees
 
-3. Status vocabulary decision: `pipetask report` (QuantumProvenanceGraph) calls
-   downstream-of-failure quanta "blocked", while the schema calls their outcome
-   `failed_upstream` (and reserves "wonky" cases for human review). Which
-   vocabulary should the simulator emit, and do children of failed parents get explicit
-   records or simply never release?
-4. Start v1 with `resource_key` failure rates fitted separately for each site and
-   queue. Should site-level outage/degraded events be included immediately, or wait
-   until each site's sample supports stable rates?
-5. Implement both PanDA/BPS recovery layers: same-submission `bps restart` and a
-   pre-materialized subset-qgraph rescue gated on parent failure. Confirm the output
-   linkage fields needed to distinguish retry attempts from rescue jobs.
-
-## Data movement (Rucio + FTS + xrootd in production)
-
-6. Core resolves input-file locations once at t=0, so children can't list parent
-   products as inputs (scaffold README, constraint 5). Do you want to (a) ask Paul for
-   re-resolution at release time, or (b) model Rucio-rule-driven transfers
-   plugin-side? Which lands in v1?
-7. Production moves data via Rucio rules + FTS, with jobs often reading via xrootd
-   rather than staging to local disk. For the first studies, is a minimal per-link
-   staging/consolidation model among SLAC, IN2P3, LANCS, and RAL enough, or
-   do you need the direct-access (xrootd) vs. staged distinction and per-link
-   concurrency limits from day one?
-
-## Output plugin (PanDA schema, §10)
-
-8. For the 99-field record emitter: which field classes are in your v1 — the
-   "simulated" set only, or also the synthesized ids (`pandaid`, `jobname` with the
-   `u_lsstgrid_..._{taskLabel}_..._{clusterLabel}` join-key pattern)?
-9. Pilot-log templates: the pilot's `errorcodes.py` is public and carries the full
-   code → message table (1305 = PAYLOADEXECUTIONFAILURE "Failed to execute payload"),
-   so the template library can be seeded from it plus real `piloterrordiag` samples
-   from `panda_prod_test`. Proposal: Kenny seeds the library on the datagen side;
-   your emitter just writes (code, diag, log-tail) triples it's given. Agreed, or do
-   you want the templates inside the plugin?
-10. Do you emit PanDA records alongside the existing EVENTS table or replace it?
-    (Downstream GRPO/SFT tooling currently reads EVENTS.)
-
-## Scale & format
-
-11. Implement the resolved bundle contract: `qgraph_manifest.json`,
-    `quanta.jsonl`, and `edges.jsonl`. Can the parser consume records
-    incrementally without retaining the full graph twice in memory?
-12. Timeline: which of these do you want in your v1 vs. deferred, and does the
-    scaffold's structure (QGRAPH_WORKLOAD / RUBIN_DISPATCHER / OUTPUT split) work for
-    you as the base, or will you restructure?
+1. **Native DAG plan.** Proposed default: port `dag_dependencies` to current CGSim,
+   include the tested parent-output-write barrier, and use native DAG release for v1
+   only after both acceptance fixtures pass. Are you willing to own that port/PR?
+2. **Special queues.** Which tasks or cluster shapes, if any, should route to
+   `_Merge` or `_Multi` in v1? Proposed default: ordinary memory-tier routing unless
+   an authoritative rule is available.
+3. **Failure terminology.** Proposed default: store the simulator outcome as
+   `failed_upstream`, with Rubin's `blocked` as an optional source-vocabulary field.
+   Accept or request a different canonical representation?
+4. **Recovery linkage.** Proposed minimum fields are `attempt`, `retry_of`,
+   `rescue_of`, `qgraph_id`, and `cluster_id`. Are additional identifiers required
+   by your implementation?
+5. **Outages.** Proposed default: v1 uses site/queue/resource-key failure fits only;
+   correlated site outage/degradation events move to P1. Accept?
+6. **Delivery shape.** Proposed sequence: portability/build PR, current-CGSim DAG
+   PR, then PanDA input/routing/output PRs. Does this split fit how you want to land
+   the work, or is there a dependency that requires a different order?
 
 ---
 Sources: [Rubin PanDA queues & memory mapping](https://panda.lsst.io/user/data_facilities_and_queues.html) ·
