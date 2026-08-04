@@ -189,11 +189,16 @@ results. This work is independent of Raees's v1 plugin.
       `RAL_Rubin_*` -- that migration is the "Replace the scaffold's
       collapsed `UKDF` zone..." item below, and adding rejection now would
       break the demo pipeline this session just validated
+- [x] Confirmed the QGraph manifest entry carrying the dispatch-plugin path
+      and v0.2 parameters instead of `jobs_file`/`Num_of_Jobs` already exists
+      -- `rubin_dag_config.json`, `rubin_dag_config_perlmutter.json`, and
+      `build_real_bundle_run_config.py`'s generated config all use
+      `qgraph_file`/`clustering_file`/`default_site`/`output_file`; none use
+      `jobs_file`/`Num_of_Jobs` (that's only in the separate legacy
+      flat-workload configs, which are deliberately unchanged)
 
 ### Still open
 
-- [ ] Add a QGraph manifest entry carrying the dispatch-plugin path and v0.2
-      parameters instead of `jobs_file`/`Num_of_Jobs`
 - [ ] Actually run `nightlyStep1`/`nightlyStep2*` via `pipetask run` (real
       compute, not just `pipetask qgraph`) against `rc2_subset` so a
       `nightlyStep3` (coadd) graph -- the originally-named fixture's actual

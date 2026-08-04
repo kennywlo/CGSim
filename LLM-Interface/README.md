@@ -31,8 +31,11 @@ and the canonical site identities above. See
 schema-section-4 streaming bundle (`qgraph_manifest.json`, `quanta.jsonl`,
 `edges.jsonl`) against a real LSST QuantumGraph, replacing the synthetic
 `campaign-demo/qgraph_export.json` for production exports. See
-`rubin_campaign_schema_v0.2.md` section 4 for the schema and
-`docs/raees_rubin_plugin_compatibility.md` for how the plugin consumes it.
+`rubin_campaign_schema_v0.2.md` section 4 for the schema, and "Running a real
+QuantumGraph bundle through the simulator" below for how
+`dispatch_plugins/rubin-plugin` (this repo's plugin) consumes it directly.
+`docs/raees_rubin_plugin_compatibility.md` covers a separate, unrelated
+codebase -- Raees's `Rubin-Plugin` repo -- not this one.
 
 **Pinned environment** (established 2026-08-03 on Perlmutter; see
 `rubin-data/perlmutter_inspection/perlmutter-env.txt` and `lsst-products.txt`):
