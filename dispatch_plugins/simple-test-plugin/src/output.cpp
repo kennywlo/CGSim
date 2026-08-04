@@ -35,8 +35,11 @@ void OUTPUT::createEventsTable()
     char* errmsg = nullptr;
     int ret = sqlite3_exec(db, create_stmt, nullptr, nullptr, &errmsg);
     if (ret != SQLITE_OK) {
+        std::string message = "Database table creation failed: " +
+            std::string(errmsg ? errmsg : "unknown sqlite3 error") +
+            " (sqlite3 rc=" + std::to_string(ret) + ")";
         sqlite3_free(errmsg);
-        throw std::runtime_error("Database table creation failed");
+        throw std::runtime_error(message);
     }
 }
 

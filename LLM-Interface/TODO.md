@@ -123,24 +123,46 @@ results. This work is independent of Raees's v1 plugin.
       repeated exports are structurally deterministic, provenance carries all
       pinned revisions
 
+### Perlmutter build/Slurm plumbing -- done 2026-08-03
+
+- [x] Perlmutter build helper for CGSim/SimGrid and `libRubinDispatcherPlugin.so`
+      (`scripts/perlmutter-env.sh`, `scripts/build-cgsim-perlmutter.sh`,
+      `scripts/build-rubin-plugin-perlmutter.sh`). Installs into
+      `$PSCRATCH/cgsim-rubin/install`, not `$HOME` (40 GiB NERSC quota already
+      exceeded once in this project). Requires `-DBOOST_ROOT` pointed at the Cray
+      `dyninst` package's bundled Boost 1.75 -- the system `/usr` Boost 1.66 is
+      missing headers SimGrid needs; see `perlmutter-plumbing-notes.md` for the
+      two prior undocumented build attempts this was derived from
+- [x] `rubin_dag_config_perlmutter.json` with `/global/homes/...` paths and
+      `output_file` under `/tmp`, separate from the flat-workload
+      `rubin_config_perlmutter.json`
+- [x] QGraph-specific Slurm wrapper and Make target
+      (`scripts/rubin-dag-smoke.sbatch`, `make rubin-dag-build` /
+      `rubin-dag-smoke-local` / `rubin-dag-smoke-submit`), separate from the
+      legacy `datagen-submit`/`ScenarioConfigGenerator.py` path
+- [x] Built the Rubin scaffold plugin and ran the synthetic campaign-demo
+      through it on Perlmutter x86_64 (`scripts/smoke-rubin-dag-perlmutter.sh`):
+      624 quanta -> 264 cluster jobs, 260 DAG edges, zero ordering violations
+      (`verify_dag_order.py`: "OK: every child started at/after its last
+      parent's end") -- matches the DGX ARM64 result
+- [x] Fixed `OUTPUT::createEventsTable()` in both `simple-test-plugin` and
+      `rubin-plugin` silently discarding the real `sqlite3_exec` error message
+      before throwing a generic "Database table creation failed" -- found while
+      chasing a stale June 2026 Perlmutter run's DB error that turned out to be
+      unrelated to `/tmp`/WAL (confirmed separately); the real cause is now
+      always in the exception text if this recurs
+
 ### Still open
 
-- [ ] Add `rubin_dag_config_perlmutter.json` with configurable `/global/homes/...`
-      paths and `output_file` under `/tmp`; do not reuse the existing flat-workload
-      `rubin_config_perlmutter.json`
-- [ ] Add a Perlmutter build helper for CGSim/SimGrid and
-      `libRubinDispatcherPlugin.so`; remove DGX-specific install paths (explicitly
-      out of scope for the exporter task -- do not build SimGrid on Perlmutter yet)
-- [ ] Add a QGraph-specific Slurm wrapper and Make target. The current
-      `datagen-submit`/`ScenarioConfigGenerator.py` path is legacy five-site only
 - [ ] Add a QGraph manifest entry carrying the dispatch-plugin path and v0.2
       parameters instead of `jobs_file`/`Num_of_Jobs`
 - [ ] Actually run `nightlyStep1`/`nightlyStep2*` via `pipetask run` (real
       compute, not just `pipetask qgraph`) against `rc2_subset` so a
       `nightlyStep3` (coadd) graph -- the originally-named fixture's actual
       stage -- has real upstream products to build against
-- [ ] Build the Rubin scaffold plugin and run the synthetic campaign through Slurm
-- [ ] Validate coadd-after-warp ordering and all cluster-DAG edges in the EVENTS DB
+- [ ] Run the real `rc2_subset` QGraph export bundle (not just the synthetic
+      campaign-demo) through `cg-sim` + `libRubinDispatcherPlugin.so` on
+      Perlmutter and validate against `verify_dag_order.py`
 - [ ] Confirm `CGSimDataGenerator.py` accepts the DAG-gated EVENTS DB and rejects
       compute sites outside the four canonical PanDA prefixes
 

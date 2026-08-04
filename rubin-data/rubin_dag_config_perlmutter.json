@@ -1,0 +1,16 @@
+{
+    "Grid_Name": "Rubin-Data-Facilities",
+    "Sites_Information": "/global/homes/k/kennylo/llm-apps/app/CGSim/rubin-data/campaign-demo/site_info.json",
+    "Sites_Connection_Information": "/global/homes/k/kennylo/llm-apps/app/CGSim/rubin-data/site_conn_info.json",
+    "Dispatcher_Plugin": "/global/homes/k/kennylo/llm-apps/app/CGSim/dispatch_plugins/rubin-plugin/build/libRubinDispatcherPlugin.so",
+    "Limited_Sites": [],
+    "Custom_Parameters":
+    {
+        "qgraph_file": "/global/homes/k/kennylo/llm-apps/app/CGSim/rubin-data/campaign-demo/qgraph_export.json",
+        "clustering_file": "/global/homes/k/kennylo/llm-apps/app/CGSim/rubin-data/campaign-demo/clustering.json",
+        "campaign_file": "/global/homes/k/kennylo/llm-apps/app/CGSim/rubin-data/campaign-demo/campaign.json",
+        "resources_file": "/global/homes/k/kennylo/llm-apps/app/CGSim/rubin-data/campaign-demo/resources.json",
+        "default_site": "USDF",
+        "output_file": "/tmp/rubin_dag_output_perlmutter.db"
+    }
+}

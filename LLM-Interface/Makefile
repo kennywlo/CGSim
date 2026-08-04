@@ -54,6 +54,11 @@ help:
 	@echo "  make merge                        Merge all JSONL into one file"
 	@echo "  make clean-scenarios              Delete generated scenario configs"
 	@echo ""
+	@echo "Rubin DAG QGraph plugin (Perlmutter):"
+	@echo "  make rubin-dag-build              Build CGSim/SimGrid/rubin-plugin from source"
+	@echo "  make rubin-dag-smoke-local        Run the DAG-gated smoke test on the login node"
+	@echo "  make rubin-dag-smoke-submit       Submit the smoke test via sbatch"
+	@echo ""
 	@echo "Key variables (override on command line):"
 	@echo "  ACCOUNT=$(ACCOUNT)"
 	@echo "  OUTPUTS_DIR=$(OUTPUTS_DIR)"
@@ -182,6 +187,28 @@ datagen-submit-ollama: $(MANIFEST)
 	    --cpus         $(SLURM_CPUS) \
 	    --mem-per-cpu  $(SLURM_MEM_PER_CPU) \
 	    --n           $(EXAMPLES_PER_SCENARIO)
+
+# ---- Rubin DAG QGraph plugin (Perlmutter) ----
+# Separate from the legacy datagen-submit path above: builds and smoke-tests
+# CGSim/SimGrid/libRubinDispatcherPlugin.so from source on Perlmutter x86_64
+# (DGX Spark's ARM64 binaries do not run here) and validates DAG-gated
+# execution ordering against the synthetic rubin_campaign_schema v0.2 demo.
+# See perlmutter-plumbing-notes.md for why the build needs a non-default
+# BOOST_ROOT and why the install prefix is $PSCRATCH rather than $HOME.
+
+.PHONY: rubin-dag-build
+rubin-dag-build:
+	bash -c 'source $(HERE)scripts/perlmutter-env.sh && \
+	    $(HERE)scripts/build-cgsim-perlmutter.sh && \
+	    $(HERE)scripts/build-rubin-plugin-perlmutter.sh'
+
+.PHONY: rubin-dag-smoke-local
+rubin-dag-smoke-local:
+	$(HERE)scripts/smoke-rubin-dag-perlmutter.sh
+
+.PHONY: rubin-dag-smoke-submit
+rubin-dag-smoke-submit:
+	sbatch $(HERE)scripts/rubin-dag-smoke.sbatch
 
 # ---- Cleanup ----
 
