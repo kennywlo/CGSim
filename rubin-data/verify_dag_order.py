@@ -19,6 +19,40 @@ import sqlite3
 import sys
 
 
+def load_qgraph_bundle(path):
+    """Load either the monolithic qgraph_export.json test-fixture format
+    (top-level quanta/edges arrays, as generate_campaign.py produces) or a
+    real v0.2 streaming bundle: a qgraph_manifest.json whose quanta_file/
+    edges_file point at quanta.jsonl/edges.jsonl (see
+    LLM-Interface/rubin_campaign_schema_v0.2.md section 4 and
+    rubin-data/qgraph_exporter.py), resolved relative to the manifest's own
+    directory. Mirrors QGRAPH_WORKLOAD::load_qgraph_bundle in the C++ plugin.
+    """
+    with open(path) as f:
+        top = json.load(f)
+    if "quanta" in top and "edges" in top:
+        return top
+    if "quanta_file" not in top or "edges_file" not in top:
+        raise ValueError(
+            f"{path} has neither inline quanta/edges nor quanta_file/edges_file "
+            "-- not a recognized qgraph bundle format"
+        )
+    bundle_dir = os.path.dirname(os.path.abspath(path))
+
+    def _read_jsonl(rel_path):
+        records = []
+        with open(os.path.join(bundle_dir, rel_path)) as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    records.append(json.loads(line))
+        return records
+
+    top["quanta"] = _read_jsonl(top["quanta_file"])
+    top["edges"] = _read_jsonl(top["edges_file"])
+    return top
+
+
 def cluster_key(quantum, clustering):
     for spec in clustering["clusters"]:
         if quantum["task"] in spec["task_labels"]:
@@ -37,8 +71,7 @@ def main():
     ap.add_argument("--clustering", default=os.path.join(here, "campaign-demo/clustering.json"))
     args = ap.parse_args()
 
-    with open(args.qgraph) as f:
-        qgraph = json.load(f)
+    qgraph = load_qgraph_bundle(args.qgraph)
     with open(args.clustering) as f:
         clustering = json.load(f)
 

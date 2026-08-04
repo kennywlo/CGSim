@@ -152,6 +152,44 @@ results. This work is independent of Raees's v1 plugin.
       unrelated to `/tmp`/WAL (confirmed separately); the real cause is now
       always in the exception text if this recurs
 
+### Real bundle through the plugin -- done 2026-08-03
+
+- [x] `qgraph_workload.cpp`/`.h` now accept the real v0.2 streaming bundle
+      (`qgraph_manifest.json` + `quanta.jsonl` + `edges.jsonl`) in addition to
+      the monolithic `qgraph_export.json` test-fixture format, auto-detected
+      by presence of `quanta_file`/`edges_file` vs inline `quanta`/`edges`.
+      Downstream clustering/DAG/priority logic is unchanged either way --
+      both shapes normalize into the same in-memory structure. Regression-
+      tested against the synthetic campaign-demo (still 264 clusters / 260
+      edges / zero violations) before and after
+- [x] `verify_dag_order.py` extended the same way (`load_qgraph_bundle`),
+      regression-tested against the same synthetic fixture
+- [x] `rubin-data/build_real_bundle_run_config.py`: assembles
+      `clustering.json` (one spec per real task label, using that task's
+      actual dimensions from the manifest), `site_info.json` (external
+      inputs -- raw/calib products with no producer in this graph --
+      pre-registered at `--raw-site`, generalizing `generate_campaign.py`'s
+      `build_site_info()` from an in-memory synthetic qgraph to a real
+      bundle), and a `rubin_dag_config.json` pointing at all of it
+- [x] **Ran the real `rc2_subset` `nightlyStep1` export bundle (720 quanta,
+      480 edges, from `rc2_subset` commit `432ea10`) through `cg-sim` +
+      `libRubinDispatcherPlugin.so` on Perlmutter x86_64** -- the first time a
+      real QuantumGraph export has been executed end-to-end, not synthetic
+      data. `QGRAPH_WORKLOAD: 720 quanta -> 720 cluster jobs (240 roots, max
+      depth 2)`; `verify_dag_order.py`: `clusters: 720  dag edges: 480
+      executed: 720` / `OK: every child started at/after its last parent's
+      end`
+- [x] Checked whether `CGSimDataGenerator.py` rejects compute sites outside
+      the four canonical PanDA prefixes -- **it does not**. It has no
+      site-name validation at all; `site` is an untyped metadata string used
+      only for SQL-generation prompts. This isn't a small gap to patch in
+      isolation: the site *topology* itself (`rubin-data/site_info.json`)
+      still uses the legacy `Summit`/`Base`/`USDF`/`FrDF`/`UKDF` five-site
+      model, not `SLAC_Rubin_*`/`CC-IN2P3_Rubin_*`/`LANCS_Rubin_*`/
+      `RAL_Rubin_*` -- that migration is the "Replace the scaffold's
+      collapsed `UKDF` zone..." item below, and adding rejection now would
+      break the demo pipeline this session just validated
+
 ### Still open
 
 - [ ] Add a QGraph manifest entry carrying the dispatch-plugin path and v0.2
@@ -159,12 +197,13 @@ results. This work is independent of Raees's v1 plugin.
 - [ ] Actually run `nightlyStep1`/`nightlyStep2*` via `pipetask run` (real
       compute, not just `pipetask qgraph`) against `rc2_subset` so a
       `nightlyStep3` (coadd) graph -- the originally-named fixture's actual
-      stage -- has real upstream products to build against
-- [ ] Run the real `rc2_subset` QGraph export bundle (not just the synthetic
-      campaign-demo) through `cg-sim` + `libRubinDispatcherPlugin.so` on
-      Perlmutter and validate against `verify_dag_order.py`
-- [ ] Confirm `CGSimDataGenerator.py` accepts the DAG-gated EVENTS DB and rejects
-      compute sites outside the four canonical PanDA prefixes
+      stage -- has real upstream products to build against. Not yet attempted:
+      this is real astronomical image-processing compute (240 detector-visits),
+      not graph-building, and could take a long time
+- [ ] Migrate `rubin-data/site_info.json` off the legacy five-site
+      `Summit`/`Base`/`USDF`/`FrDF`/`UKDF` model to the four canonical PanDA
+      facilities before adding any site-name validation to
+      `CGSimDataGenerator.py` or elsewhere
 
 ### Kenny: production resource, failure, and topology inputs
 

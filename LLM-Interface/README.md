@@ -140,6 +140,51 @@ python -m pytest rubin-data/tests/test_qgraph_exporter.py -v      # requires the
 
 ---
 
+## Running a real QuantumGraph bundle through the simulator (Perlmutter)
+
+`rubin-data/build_real_bundle_run_config.py` bridges a real `qgraph_exporter.py`
+bundle into a runnable CGSim configuration, and `dispatch_plugins/rubin-plugin`'s
+`qgraph_workload.cpp` reads that bundle format directly (`qgraph_manifest.json`
++ `quanta.jsonl` + `edges.jsonl`) alongside the existing monolithic
+`qgraph_export.json` test-fixture format used by `generate_campaign.py` --
+auto-detected by presence of `quanta_file`/`edges_file` vs inline
+`quanta`/`edges`. Same for `verify_dag_order.py`.
+
+```bash
+source scripts/perlmutter-env.sh
+scripts/build-cgsim-perlmutter.sh          # once
+scripts/build-rubin-plugin-perlmutter.sh   # once
+
+RUN_DIR="$PSCRATCH/cgsim-rubin/artifacts/rc2_subset_nightlyStep1_export/run1"
+python3 ../rubin-data/build_real_bundle_run_config.py \
+  --manifest "$RUN_DIR/qgraph_manifest.json" \
+  --site-info ../rubin-data/site_info.json \
+  --raw-site Base \
+  --default-site USDF \
+  --dispatcher-plugin ../dispatch_plugins/rubin-plugin/build/libRubinDispatcherPlugin.so \
+  --sites-connection-info ../rubin-data/site_conn_info.json \
+  --out-dir "$RUN_DIR/run_config"
+
+cg-sim -c "$RUN_DIR/run_config/rubin_dag_config.json"
+python3 ../rubin-data/verify_dag_order.py /tmp/rubin_real_bundle_output.db \
+  --qgraph "$RUN_DIR/qgraph_manifest.json" \
+  --clustering "$RUN_DIR/run_config/clustering.json"
+```
+
+This is a structural smoke-test harness, not a production run configuration:
+it uses one cluster per (task label, full real dimensions) -- no clustering
+policy reduction -- and no fitted `resources.json` (real per-site resource
+fits are separate, unstarted work; see TODO.md's "production resource,
+failure, and topology inputs").
+
+**Verified 2026-08-03**, first real (not synthetic) QuantumGraph run end to
+end: `rc2_subset` `nightlyStep1` export (720 quanta, 480 edges) ->
+`QGRAPH_WORKLOAD: 720 quanta -> 720 cluster jobs (240 roots, max depth 2)` ->
+`verify_dag_order.py`: `clusters: 720  dag edges: 480  executed: 720` /
+`OK: every child started at/after its last parent's end`.
+
+---
+
 ## DGX Spark development environment
 
 DGX Spark is the development, fitting, datagen, and model-work environment. The

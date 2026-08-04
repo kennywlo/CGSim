@@ -44,6 +44,17 @@ private:
   };
 
   json        load_json(const std::string& path);
+
+  // Loads qgraph_file, which may be either the monolithic test-fixture
+  // format (top-level "quanta"/"edges" arrays, as generate_campaign.py
+  // produces) or a real v0.2 streaming bundle -- a qgraph_manifest.json
+  // whose "quanta_file"/"edges_file" point at quanta.jsonl/edges.jsonl,
+  // read line-by-line (see LLM-Interface/rubin_campaign_schema_v0.2.md
+  // section 4 and rubin-data/qgraph_exporter.py). Both are normalized into
+  // the same in-memory shape ("tasks"/"quanta"/"edges"/"provenance") so
+  // every line below this call is unchanged either way.
+  json        load_qgraph_bundle(const std::string& qgraph_file_path);
+
   std::string cluster_key(const Quantum& q, const json& clustering);
   double      sample_lognorm(const json& dist_spec, double fallback);
   long long   dataset_bytes(const std::string& dataset_type, const json& quantum_outputs);

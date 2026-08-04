@@ -1,4 +1,5 @@
 #include "qgraph_workload.h"
+#include <filesystem>
 #include <map>
 #include <set>
 #include <cmath>
@@ -8,6 +9,47 @@ json QGRAPH_WORKLOAD::load_json(const std::string& path)
     std::ifstream f(path);
     if (!f.is_open()) {throw std::runtime_error("Could not open file: " + path);}
     return json::parse(f);
+}
+
+json QGRAPH_WORKLOAD::load_qgraph_bundle(const std::string& qgraph_file_path)
+{
+    json top = load_json(qgraph_file_path);
+
+    // Monolithic test-fixture format: quanta/edges already inline.
+    if (top.contains("quanta") && top.contains("edges")) return top;
+
+    // v0.2 streaming bundle: top is qgraph_manifest.json. quanta_file/
+    // edges_file are relative to the manifest's own directory, not cwd.
+    if (!top.contains("quanta_file") || !top.contains("edges_file"))
+        throw std::runtime_error(
+            "qgraph_file " + qgraph_file_path +
+            " has neither inline quanta/edges nor quanta_file/edges_file "
+            "-- not a recognized qgraph bundle format");
+
+    std::filesystem::path bundle_dir =
+        std::filesystem::path(qgraph_file_path).parent_path();
+    std::filesystem::path quanta_path = bundle_dir / top["quanta_file"].get<std::string>();
+    std::filesystem::path edges_path  = bundle_dir / top["edges_file"].get<std::string>();
+
+    json quanta = json::array();
+    std::ifstream qf(quanta_path);
+    if (!qf.is_open()) {throw std::runtime_error("Could not open file: " + quanta_path.string());}
+    for (std::string line; std::getline(qf, line);) {
+        if (line.empty()) continue;
+        quanta.push_back(json::parse(line));
+    }
+
+    json edges = json::array();
+    std::ifstream ef(edges_path);
+    if (!ef.is_open()) {throw std::runtime_error("Could not open file: " + edges_path.string());}
+    for (std::string line; std::getline(ef, line);) {
+        if (line.empty()) continue;
+        edges.push_back(json::parse(line));
+    }
+
+    top["quanta"] = std::move(quanta);
+    top["edges"]  = std::move(edges);
+    return top;
 }
 
 // scipy lognorm convention: params = [shape(sigma), loc, scale]
@@ -55,7 +97,7 @@ std::string QGRAPH_WORKLOAD::cluster_key(const Quantum& q, const json& clusterin
 
 JobQueue QGRAPH_WORKLOAD::getWorkload()
 {
-    json qgraph     = load_json(platform->get_property("qgraph_file"));
+    json qgraph     = load_qgraph_bundle(platform->get_property("qgraph_file"));
     json clustering = load_json(platform->get_property("clustering_file"));
 
     const char* res_path = platform->get_property("resources_file");
