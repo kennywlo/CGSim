@@ -61,6 +61,26 @@ mechanism. Supersedes the DGX-only state in `docs/raees_rubin_plugin_compatibili
    results against this workload as RC2-scale proxy results, not DRP1-fidelity
    numbers, until it's regenerated from the real LSSTCam pipeline.
 
+## What this actually gets you on Perlmutter
+
+Realistically, this is enough to reach a **working single-site smoke test, not a
+production DRP1 run.** Concretely doable with just mechanical porting (no new
+decisions needed): pull `CGSim` `main` and `Rubin-Plugin` `kenny/dgx-compat`, build
+CGSim from `origin/api_cleanup` with Perlmutter's modules, build `libRubinPlugin.so`
+against it, and run the single-site (`Site0`=USDF) simulation against
+`real_quantum_graph.json` as a functional check.
+
+**Do the output-write-barrier check first, before trusting any run output** — see
+point 2 above. That fix was never confirmed on `api_cleanup`, so a run could produce
+the same missing-generated-input crash the original `dgx-output-barrier` fix solved,
+or silently look fine on a workload too small to trigger the race.
+
+Everything past that smoke test needs either a decision (multi-site topology, which
+is blocked on the Raees meeting) or plumbing that doesn't exist yet (`_perlmutter`
+config, sbatch script — see below). And whatever numbers come out are RC2-scale, not
+DRP1-scale, per point 4 — fine for validating the build/DAG-ordering pipeline
+end-to-end, not for reporting as real campaign results.
+
 ## Not yet done — still applies from the 2026-08-03 P0 list
 
 Everything in `docs/raees_rubin_plugin_compatibility.md`'s "Gaps to the PanDA-only
