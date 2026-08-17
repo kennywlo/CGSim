@@ -26,8 +26,10 @@ sg4::ExecPtr Actions::exec_task_multi_thread_async(Job* j)
             JOB_EXECUTOR::FINISHED_JOBS++;
             JOB_EXECUTOR::dispatch_site_pending_jobs(j->comp_site);
             JOB_EXECUTOR::dispatcher->onJobFinish(j);
+            JOB_EXECUTOR::dispatcher->onJobExecutionEnd(j,ex);
 
-            //See if dependent jobs are ready to run
+            // Release DAG children only after the dispatcher has observed job
+            // completion (onJobFinish/onJobExecutionEnd) -- see dgx-output-barrier.
             bool dag_job_created = false;
             for(const auto& [child_job_id,rel_creation_time]: j->children)
             {
@@ -45,13 +47,14 @@ sg4::ExecPtr Actions::exec_task_multi_thread_async(Job* j)
                     JOB_EXECUTOR::all_jobs[child_job_id] = new_child_job;
                     JOB_EXECUTOR::jobs.push(new_child_job);
                     dag_job_created = true;
-                } 
+                }
 
             }
             if(dag_job_created) JOB_EXECUTOR::pending_activities.push(sg4::MessageQueue::by_name("JOB-SERVER-MQ")->put_async(&dag_wakeup_msg));
 
+        } else {
+            JOB_EXECUTOR::dispatcher->onJobExecutionEnd(j,ex);
         }
-        JOB_EXECUTOR::dispatcher->onJobExecutionEnd(j,ex);
 
     });
 
@@ -99,8 +102,10 @@ sg4::IoPtr Actions::write_file_async(Job* j, const std::string& filename, const 
                 JOB_EXECUTOR::FINISHED_JOBS++;
                 JOB_EXECUTOR::dispatch_site_pending_jobs(j->comp_site);
                 JOB_EXECUTOR::dispatcher->onJobFinish(j);
+                JOB_EXECUTOR::dispatcher->onFileWriteEnd(j,filename,size,io);
 
-                //See if dependent jobs are ready to run
+                // Release DAG children only after the dispatcher has observed the
+                // last output write (onFileWriteEnd) -- see dgx-output-barrier.
                 bool dag_job_created = false;
                 for(const auto& [child_job_id,rel_creation_time]: j->children)
                 {
@@ -117,12 +122,13 @@ sg4::IoPtr Actions::write_file_async(Job* j, const std::string& filename, const 
                     JOB_EXECUTOR::all_jobs[child_job_id] = new_child_job;
                     JOB_EXECUTOR::jobs.push(new_child_job);
                     dag_job_created = true;
-                } 
+                }
 
                 }
                 if(dag_job_created) JOB_EXECUTOR::pending_activities.push(sg4::MessageQueue::by_name("JOB-SERVER-MQ")->put_async(&dag_wakeup_msg));
+            } else {
+                JOB_EXECUTOR::dispatcher->onFileWriteEnd(j,filename,size,io);
             }
-            JOB_EXECUTOR::dispatcher->onFileWriteEnd(j,filename,size,io);
         });
 
     return write_activity;
