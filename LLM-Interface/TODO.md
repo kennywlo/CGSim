@@ -27,7 +27,11 @@ older datasets.
 Repository: `/home/kennylo/llm-apps/app/Rubin-Plugin`. DGX compatibility work is on
 local branch `dgx-compat`; the isolated CGSim correctness fix is on
 `dgx-output-barrier`. See `docs/raees_rubin_plugin_compatibility.md` for the verified
-build, smoke-test result, and detailed gap review.
+build, smoke-test result, and detailed gap review, and
+`docs/rubin_plugin_perlmutter_handoff_2026-08-17.md` for the current state as of
+2026-08-17 — `dgx-compat` merged with Raees's `main` and pushed, a new CGSim
+`api_cleanup` dependency for the `CGSim::Plugin` API, `Site0` confirmed as USDF, and
+`real_quantum_graph.json` confirmed RC2-derived rather than LSSTCam DRP1-derived.
 
 Scope is PanDA/BPS only across SLAC, CC-IN2P3, LANCS, and RAL. Do not add HTCondor
 or cm-service integration.
