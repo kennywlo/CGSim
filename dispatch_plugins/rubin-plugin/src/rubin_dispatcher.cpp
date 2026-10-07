@@ -23,8 +23,9 @@ void RUBIN_DISPATCHER::findAvailableCPU(CGSim::Job* j)
 
         j->set_disk(d->get_name());
         j->set_cpu(cpu->get_name());
-        // Job takes cpu_consumption_time seconds on the chosen CPU's cores.
-        j->set_flops(cpu->get_speed()*std::stod(j->get_property("cpu_consumption_time"))*j->get_cores());
+        // cpu_consumption_time is aggregate CPU-seconds (PanDA convention), so no
+        // extra cores factor: the job runs for cpu_consumption_time / cores seconds.
+        j->set_flops(cpu->get_speed()*std::stod(j->get_property("cpu_consumption_time")));
         return;
     }
 }
