@@ -309,20 +309,20 @@ inputs, so the degraded resource is on the path the workload uses.
 | Scenario | Cluster jobs | Runs at (raw at) | Description |
 |---|---|---|---|
 | `baseline` | 264 | USDF (Base) | Nominal 5-site Rubin grid |
-| `usdf_degraded` | 264 | USDF (Base) | USDF compute halved |
+| `usdf_degraded` | 3904 | USDF (Base) | USDF compute halved, 300 visits (compute-bound) |
 | `base_degraded` | 264 | Base (Summit) | Base compute halved (prompt processing) |
 | `frdf_offline` | 264 | FrDF (Base) | FrDF links throttled to 10 Mbps |
 | `summit_link_bottleneck` | 264 | USDF (Summit) | Summit uplinks throttled to 1 Gbps |
 | `transatlantic_congested` | 264 | FrDF (USDF) | Transatlantic links at 2 Gbps |
 | `usdf_storage_throttled` | 264 | USDF (Base) | USDF disk I/O throttled to 1 GBps |
 | `high_coadd_burst` | 432 | USDF (Base) | 12 patches per visit (coadd-heavy) |
-| `high_load` | 394 | USDF (Base) | All compute sites at 20% capacity, 1.5x visits |
+| `high_load` | 1304 | USDF (Base) | All compute sites at 20% capacity, 100 visits |
 
 Job duration equals the sampled `cpu_s` on the chosen CPU (the plugin sets
-`flops = cpu speed x cpu_s x cores`). At the demo scale (264 jobs, <=8 cores each) the grid
-has far more cores than jobs, so the compute-capacity overrides (`usdf_degraded`,
-`high_load`) still barely move makespan; the network, storage and workload-size scenarios
-do. Use more visits/patches to make compute the bottleneck.
+`flops = cpu speed x cpu_s x cores`). `usdf_degraded` and `high_load` use enough visits
+(300 and 100) that USDF's reduced capacity is saturated, which produces resource
+waiting time and scheduling retries (`usdf_degraded` takes ~1.5 min wall-clock to simulate);
+the other scenarios stay at the 20-visit demo scale.
 
 ---
 

@@ -90,7 +90,8 @@ SCENARIOS: dict[str, ScenarioSpec] = {
         description="Nominal Rubin 5-site grid operation",
     ),
     "usdf_degraded": ScenarioSpec(
-        description="USDF compute halved — hardware failure or planned maintenance",
+        description="USDF compute halved at 300 visits — hardware failure or planned maintenance",
+        visits=300,
         site_overrides={"USDF": SiteOverride(cpu_units_multiplier=0.5)},
     ),
     "base_degraded": ScenarioSpec(
@@ -138,8 +139,8 @@ SCENARIOS: dict[str, ScenarioSpec] = {
         patches=12,
     ),
     "high_load": ScenarioSpec(
-        description="Grid oversubscribed at 20% capacity, 1.5x visits — resource contention and scheduling retries",
-        visits=30,
+        description="Grid oversubscribed at 20% capacity, 100 visits — resource contention and scheduling retries",
+        visits=100,
         site_overrides={
             "Base": SiteOverride(cpu_units_multiplier=0.2),
             "USDF": SiteOverride(cpu_units_multiplier=0.2),
