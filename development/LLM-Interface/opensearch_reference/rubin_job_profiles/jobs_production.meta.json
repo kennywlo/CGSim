@@ -1,0 +1,9 @@
+{
+  "exported_at": "2026-10-07T16:19:47+00:00",
+  "rows": 722265,
+  "expected_rows": 722265,
+  "failed_shards": 0,
+  "indices": "panda_prod_test-2026-07,panda_prod_test-2026-08,panda_prod_test-2026-09,panda_prod_test-2026-10",
+  "jobname_prefix": "HSC_runs_",
+  "statuses": "finished,failed"
+}
