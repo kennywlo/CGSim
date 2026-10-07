@@ -6,7 +6,7 @@ Read-only scroll over panda_prod_test-* (the OpenSearch cluster is reached via
 Credentials come from the environment, never the command line:
   OS_USER, OS_PASS   (optional OS_URL, default https://127.0.0.1:19200)
 
-Default filter = "production" campaign jobs: Rubin queues (*_Rubin_*), job names starting
+Default filter = "production" campaign jobs: Rubin queues (*_Rubin*, i.e. both <site>_Rubin and <site>_Rubin_<tier>), job names starting
 HSC_runs_ (RC2 reprocessing campaigns; the u_<user>_test_* jobs are test runs), and a
 terminal status (finished/failed).
 """
@@ -37,7 +37,8 @@ def main():
     ap.add_argument("--indices", default="panda_prod_test-2026-07,panda_prod_test-2026-08,"
                     "panda_prod_test-2026-09,panda_prod_test-2026-10")
     ap.add_argument("--jobname-prefix", default="HSC_runs_",
-                    help="empty string = include test/user jobs too")
+                    help="job-name prefix, or several separated by commas (any match); "
+                         "empty string = include test/user jobs too")
     ap.add_argument("--statuses", default="finished,failed")
     ap.add_argument("--page", type=int, default=10000)
     ap.add_argument("--out", required=True, help="output .jsonl.gz")
@@ -45,10 +46,11 @@ def main():
 
     url = os.environ.get("OS_URL", "https://127.0.0.1:19200")
     auth = (os.environ["OS_USER"], os.environ["OS_PASS"])
-    flt = [{"wildcard": {"computingsite.keyword": "*_Rubin_*"}},
+    flt = [{"wildcard": {"computingsite.keyword": "*_Rubin*"}},
            {"terms": {"jobstatus.keyword": args.statuses.split(",")}}]
     if args.jobname_prefix:
-        flt.append({"prefix": {"jobname.keyword": args.jobname_prefix}})
+        flt.append({"bool": {"minimum_should_match": 1, "should": [
+            {"prefix": {"jobname.keyword": p}} for p in args.jobname_prefix.split(",")]}})
     body = {"size": args.page, "_source": FIELDS, "sort": ["_doc"], "query": {"bool": {"filter": flt}}}
 
     n = 0

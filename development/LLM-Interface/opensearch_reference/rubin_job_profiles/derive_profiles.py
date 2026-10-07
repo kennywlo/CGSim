@@ -8,7 +8,8 @@ Outputs (next to --out-prefix):
 
 Task label comes from the PanDA job name:
   <campaign>_<YYYYMMDDTHHMMSSZ>_<step>_<task label>_<NN>_<a>_<b>.<pandaid>
-Distributions use finished jobs only; failure statistics use all rows.
+Distributions use finished jobs only; failure statistics use all rows (error codes and counts
+only, no free-text diagnostics).
 """
 import argparse
 import json
@@ -80,13 +81,13 @@ def main():
         labels[lab] = group_summary(g, ok[ok["label"] == lab])
         fails = g[g["jobstatus"] == "failed"]
         if len(fails):
+            # error codes and counts only: the free-text diagnostics can contain paths,
+            # account names and directory listings, so they are deliberately not kept
             codes = (fails.assign(code=fails[["piloterrorcode", "exeerrorcode", "transexitcode"]]
                                   .fillna(0).astype(int).astype(str).agg("/".join, axis=1))
-                     .groupby("code").agg(n=("code", "size"),
-                                          diag=("piloterrordiag", lambda s: str(s.dropna().iloc[0])[:120] if s.notna().any() else "")))
+                     .groupby("code").size().sort_values(ascending=False).head(4))
             labels[lab]["top_failures"] = [
-                {"pilot/exe/trans": k, "n": int(r.n), "diag": r.diag}
-                for k, r in codes.sort_values("n", ascending=False).head(4).iterrows()]
+                {"pilot/exe/trans": k, "n": int(n)} for k, n in codes.items()]
     queues = {q: group_summary(g, ok[ok["queue"] == q]) for q, g in df.groupby("queue")}
 
     models = {}

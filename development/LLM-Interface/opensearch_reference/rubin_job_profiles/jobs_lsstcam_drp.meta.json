@@ -1,0 +1,9 @@
+{
+  "exported_at": "2026-10-07T18:04:59+00:00",
+  "rows": 2047815,
+  "expected_rows": 2047815,
+  "failed_shards": 0,
+  "indices": "panda_prod_test-*",
+  "jobname_prefix": "LSSTCam_runs_DRP_20250527-20250921_w_2025_41_DM-53071,LSSTCam_runs_DRP_w_2026_17_DM-54760",
+  "statuses": "finished,failed"
+}
