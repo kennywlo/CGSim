@@ -51,7 +51,7 @@ mechanism. Supersedes the DGX-only state in `docs/raees_rubin_plugin_compatibili
 
 4. **`workload/real_quantum_graph.json` is confirmed RC2-derived, not LSSTCam
    DRP1-derived.** Cross-checked its 41 task-type labels against the real
-   `pipeline_drp_pipe_LSSTCam_DRP.yaml` (in `~/llm-apps/app/rubin_drp_pipeline/`,
+   `pipeline_drp_pipe_LSSTCam_DRP.yaml` (in `~/llm-apps/app/lsstcam_drp_pipeline_graphs/`,
    the actual LSST Science Pipelines DRP.yaml) — only 18/40 match. The mismatches
    are systematic (`deblend`/`mergeDetections`/`measure`/`assembleCoadd` vs. the
    real pipeline's `deblendCoaddFootprints`/`mergeObjectDetection`/
