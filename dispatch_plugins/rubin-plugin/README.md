@@ -44,7 +44,7 @@ development/LLM-Interface/scripts/build-rubin-plugin-dgx.sh   # -> dispatch_plug
 development/LLM-Interface/scripts/smoke-rubin-dag-dgx.sh      # synthetic demo + DAG-order check
 ```
 
-Manual equivalent for the plugin (needs SimGrid, Boost, an installed CGSim, spdlog, SQLite3):
+Manual equivalent for the plugin (needs SimGrid, Boost, an installed CGSim, SQLite3):
 
 ```bash
 cd dispatch_plugins/rubin-plugin

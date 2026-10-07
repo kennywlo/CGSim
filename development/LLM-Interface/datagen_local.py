@@ -16,8 +16,10 @@ from pathlib import Path
 
 def run_cgsim(cgsim_bin: str, config: str, tmp_db: str, persistent_db: Path) -> bool:
     env = os.environ.copy()
-    local_lib = str(Path.home() / "llm-apps/app/local/lib")
-    env["LD_LIBRARY_PATH"] = local_lib + (":" + env["LD_LIBRARY_PATH"] if env.get("LD_LIBRARY_PATH") else "")
+    install = env.get("CGSIM_INSTALL_ROOT", str(Path.home() / "llm-apps/app/CGSim-install-upstream"))
+    simgrid = env.get("SIMGRID_INSTALL_ROOT", str(Path.home() / "llm-apps/app/simgrid-install"))
+    libs = [f"{install}/lib64", f"{install}/lib", f"{simgrid}/lib"]
+    env["LD_LIBRARY_PATH"] = ":".join(libs + ([env["LD_LIBRARY_PATH"]] if env.get("LD_LIBRARY_PATH") else []))
     r = subprocess.run([cgsim_bin, "-c", config], env=env)
     if r.returncode != 0:
         return False

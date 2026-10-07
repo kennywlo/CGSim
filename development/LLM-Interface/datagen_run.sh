@@ -19,8 +19,13 @@ GENERATOR_MODEL=${9:-}   # optional; uses CGSimDataGenerator default if empty
 JUDGE_MODEL=${10:-}      # optional; uses CGSimDataGenerator default if empty
 PROPOSE_ONLY=${11:-}     # optional; if non-empty, run propose-only mode for GRPO dataset
 
-LOCAL_LIB="${HOME}/llm-apps/app/local/lib"
-export LD_LIBRARY_PATH="${LOCAL_LIB}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+# CGSim/SimGrid runtime libs: the $PSCRATCH install on Perlmutter, else the DGX install
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -n "${PSCRATCH:-}" ]]; then
+    source "${script_dir}/scripts/perlmutter-env.sh"
+else
+    source "${script_dir}/scripts/dgx-env.sh"
+fi
 
 SLAC_HOST="${SLAC_HOST:-kennylo@s3dflogin.slac.stanford.edu}"
 SLAC_SSH_KEY="${SLAC_SSH_KEY:-${HOME}/.ssh/id_slac}"

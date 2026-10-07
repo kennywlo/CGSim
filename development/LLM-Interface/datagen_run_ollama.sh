@@ -17,8 +17,13 @@ CGSIM_BIN=$6
 PYTHON=$7
 CLIENTS_DIR=$8
 
-LOCAL_LIB="${HOME}/llm-apps/app/local/lib"
-export LD_LIBRARY_PATH="${LOCAL_LIB}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+# CGSim/SimGrid runtime libs: the $PSCRATCH install on Perlmutter, else the DGX install
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -n "${PSCRATCH:-}" ]]; then
+    source "${script_dir}/scripts/perlmutter-env.sh"
+else
+    source "${script_dir}/scripts/dgx-env.sh"
+fi
 
 SERVER_FILE="${SERVER_FILE:-${OUTPUTS_DIR}/ollama_server.txt}"
 PERSISTENT_DB="${OUTPUTS_DIR}/rubin_${SCENARIO}.db"

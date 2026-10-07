@@ -15,14 +15,13 @@ file(GLOB SOURCES src/*.cpp)
 # Set up the library.
 add_library(RubinDispatcherPlugin SHARED ${SOURCES})
 
-# Find SimGrid, SimATLAS, Boost, and FSMod
+# Find SimGrid, Boost, CGSim and SQLite3
 find_package(SimGrid REQUIRED)
 find_package(Boost REQUIRED)
 find_package(CGSim REQUIRED)
-find_package(spdlog REQUIRED)
 find_package(SQLite3   REQUIRED)
 
 
 #Link libraries and Include Directories
-target_link_libraries ( RubinDispatcherPlugin PUBLIC ${SimGrid_LIBRARY} ${Boost_LIBRARIES} spdlog::spdlog CGSim::CGSim SQLite::SQLite3)
+target_link_libraries ( RubinDispatcherPlugin PUBLIC ${SimGrid_LIBRARY} ${Boost_LIBRARIES} CGSim::CGSim SQLite::SQLite3)
 target_include_directories( RubinDispatcherPlugin PUBLIC ${SimGrid_INCLUDE_DIR} ${CGSim_INCLUDE_DIR} ${Boost_INCLUDE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../../json/single_include)
