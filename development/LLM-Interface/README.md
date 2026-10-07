@@ -318,8 +318,8 @@ inputs, so the degraded resource is on the path the workload uses.
 | `high_coadd_burst` | 432 | USDF (Base) | 12 patches per visit (coadd-heavy) |
 | `high_load` | 1304 | USDF (Base) | All compute sites at 20% capacity, 100 visits |
 
-Job duration equals the sampled `cpu_s` on the chosen CPU (the plugin sets
-`flops = cpu speed x cpu_s x cores`). `usdf_degraded` and `high_load` use enough visits
+Job duration is the sampled `cpu_s` (aggregate CPU-seconds) divided by the job's cores on the
+chosen CPU (the plugin sets `flops = cpu speed x cpu_s`, with no cores factor). `usdf_degraded` and `high_load` use enough visits
 (300 and 100) that USDF's reduced capacity is saturated, which produces resource
 waiting time and scheduling retries (`usdf_degraded` takes ~1.5 min wall-clock to simulate);
 the other scenarios stay at the 20-visit demo scale.
