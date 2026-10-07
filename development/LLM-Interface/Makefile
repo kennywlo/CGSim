@@ -1,11 +1,12 @@
-# Legacy five-site CGSim → AskPanDA SFT datagen pipeline
+# Rubin QGraph CGSim → AskPanDA datagen pipeline
 #
-# The active development target is PanDA/BPS QuantumGraph processing across
-# SLAC, CC-IN2P3, LANCS, and RAL. These targets reproduce the pre-QG
-# flat-workload datasets.
+# Scenarios are synthetic Rubin DRP campaigns (rubin-data/generate_campaign.py)
+# run through dispatch_plugins/rubin-plugin on the 5-site topology, with
+# per-scenario capacity / network / storage overrides (ScenarioConfigGenerator).
+# Build the plugin first (make rubin-dag-build on Perlmutter).
 #
 # Targets:
-#   make scenarios              Generate scenario config files from baseline topology
+#   make scenarios              Generate QGraph scenario configs from the baseline topology
 #   make datagen-local          Run one scenario locally (no Slurm)
 #   make datagen-submit         Submit all scenarios as individual sbatch jobs
 #   make merge                  Concatenate all scenario JSONL into one training file
@@ -44,10 +45,10 @@ SLURM_CONSTRAINT ?= cpu
 .PHONY: help
 help:
 	@echo ""
-	@echo "Legacy five-site CGSim → AskPanDA SFT datagen pipeline"
-	@echo "Active target: PanDA/BPS QG at SLAC, CC-IN2P3, LANCS, and RAL"
+	@echo "Rubin QGraph CGSim → AskPanDA datagen pipeline"
+	@echo "Scenarios run through dispatch_plugins/rubin-plugin"
 	@echo ""
-	@echo "  make scenarios                    Generate legacy five-site scenario configs"
+	@echo "  make scenarios                    Generate Rubin QGraph scenario configs"
 	@echo "  make datagen-local SCENARIO=name  Run one scenario locally"
 	@echo "  make datagen-submit               Submit all scenarios via sbatch (SFT dataset)"
 	@echo "  make grpo-submit                  Submit propose-only jobs via sbatch (GRPO dataset)"
@@ -189,7 +190,7 @@ datagen-submit-ollama: $(MANIFEST)
 	    --n           $(EXAMPLES_PER_SCENARIO)
 
 # ---- Rubin DAG QGraph plugin (Perlmutter) ----
-# Separate from the legacy datagen-submit path above: builds and smoke-tests
+# Builds and smoke-tests
 # CGSim/SimGrid/libRubinDispatcherPlugin.so from source on Perlmutter x86_64
 # (DGX Spark's ARM64 binaries do not run here) and validates DAG-gated
 # execution ordering against the synthetic rubin_campaign_schema v0.2 demo.

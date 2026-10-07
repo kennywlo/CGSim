@@ -19,7 +19,8 @@ QuantumGraph processing across every Rubin Data Facility attached to PanDA:
 - no HTCondor workflow/history modeling
 - no dependency on production cm-service activity logs
 
-The five-site flat-workload scenario generator and existing SFT datasets are
+The scenario generator now emits Rubin QGraph scenarios (see "Scenarios" below). The
+existing SFT datasets were produced from the old five-site flat workload and are
 retained as historical baselines. They do not define the target topology or
 calibration population for the PanDA/QG run unless filtered to PanDA semantics
 and the canonical site identities above. See
@@ -219,7 +220,8 @@ scripts/smoke-rubin-dag-dgx.sh
 
 ## Legacy flat-workload rerun checklist
 
-This checklist reproduces the existing five-site baseline; it is not the active
+Historical: this checklist describes the removed flat-workload pipeline
+(`simple-test-plugin` / `jobs.csv`) and no longer applies. It is not the active
 PanDA/QG run. The simulation parameters changed since v2 (2026-06-02). Scenario configs on disk
 are stale — **regenerate them before submitting jobs.**
 
@@ -296,32 +298,29 @@ Output lands in `LLM-Interface/data/askpanda_sft_cgsim_v<YYYYMMDD>.jsonl`.
 
 ---
 
-## Legacy flat-workload scenarios
+## Scenarios
 
-| Scenario | Jobs | Description |
-|---|---|---|
-| `baseline` | 1000 | Nominal 5-site Rubin grid |
-| `usdf_degraded` | 1000 | USDF compute halved (hardware failure / maintenance) |
-| `base_degraded` | 1000 | Base compute halved (prompt processing bottleneck) |
-| `frdf_offline` | 1000 | FrDF links throttled to 10 Mbps (network partition) |
-| `summit_link_bottleneck` | 1000 | Summit uplinks throttled to 1 Gbps |
-| `transatlantic_congested` | 1000 | All transatlantic links at 2 Gbps |
-| `usdf_storage_throttled` | 1000 | USDF disk I/O throttled to 1 GBps |
-| `high_coadd_burst` | 1000 | Heavy Coadd/ForcedPhotom burst (DRP reprocessing campaign) |
-| `high_load` | 1500 | All sites at 20% capacity — resource contention and scheduling retries |
+`make scenarios` runs `clients/ScenarioConfigGenerator.py`, which builds each scenario
+from a synthetic Rubin DRP campaign (`rubin-data/generate_campaign.py`) executed by
+`dispatch_plugins/rubin-plugin` on the topology below, plus capacity / network / storage
+overrides. Each scenario sets the site that runs the campaign and the site holding the raw
+inputs, so the degraded resource is on the path the workload uses.
 
-`high_load` is the only scenario designed to produce non-zero scheduling retry
-counts. It runs 1500 jobs against a grid at 20% capacity (~1.2–2× oversubscribed
-per site), which drives the `retries` field on `JobExecution / Finished` events.
+| Scenario | Cluster jobs | Runs at (raw at) | Description |
+|---|---|---|---|
+| `baseline` | 264 | USDF (Base) | Nominal 5-site Rubin grid |
+| `usdf_degraded` | 264 | USDF (Base) | USDF compute halved |
+| `base_degraded` | 264 | Base (Summit) | Base compute halved (prompt processing) |
+| `frdf_offline` | 264 | FrDF (Base) | FrDF links throttled to 10 Mbps |
+| `summit_link_bottleneck` | 264 | USDF (Summit) | Summit uplinks throttled to 1 Gbps |
+| `transatlantic_congested` | 264 | FrDF (USDF) | Transatlantic links at 2 Gbps |
+| `usdf_storage_throttled` | 264 | USDF (Base) | USDF disk I/O throttled to 1 GBps |
+| `high_coadd_burst` | 432 | USDF (Base) | 12 patches per visit (coadd-heavy) |
+| `high_load` | 394 | USDF (Base) | All compute sites at 20% capacity, 1.5x visits |
 
-To run a subset of scenarios:
-
-```bash
-make datagen-submit ACCOUNT=m2616 OUTPUTS_DIR=$PSCRATCH/cgsim-outputs \
-    # edit datagen_submit.py --scenarios flag, or use datagen-local SCENARIO=<name>
-```
-
----
+Known limitation: with the plugin's current `GFLOPS × cpu_s × cores` flops formula, jobs
+run in ~1e-7 s of simulated time, so compute-capacity overrides (`usdf_degraded`,
+`high_load`) do not change makespan; the network, storage and workload-size scenarios do.
 
 ## Legacy flat-workload topology
 
