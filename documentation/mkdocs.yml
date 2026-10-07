@@ -1,8 +1,8 @@
-site_name: ATLAS GRID SIMULATION
-site_description: REDWOOD Collaboration
+site_name: CGSim — Simulation Framework For Large-Scale Distributed Computing
+site_description: CGSim — Simulation Framework For Large-Scale Distributed Computing
 site_author: REDWOOD Collaboration
-repo_name: ATLAS GRID SIMULATION
-repo_url: https://github.com/REDWOOD24/ATLAS-GRID-SIMULATION
+repo_name: CGSim
+repo_url: https://github.com/REDWOOD24/CGSim
 
 
 theme:
@@ -10,36 +10,32 @@ theme:
 
 nav:
     - Home: 'index.md'
-    - 'Install Libraries & Tools': 'start/install.md'
-    - ATLAS Grid:
-        - PanDa:
-            - 'Overview': 'components/kernel/overview/index.md'
-            - 'REDWOOD': 'components/kernel/reference/index.md'
-        - Technical Details: 'components/kernel/reference/index.md'
+    - 'Install Libraries & Tools': 'install.md'
+    - 'Getting Started with CGSim':
+      - Configuration: 'configuration.md'
+      - Computing Grid: 'computing_grid.md'
    
-    - Simulation tools:
-        - 'General Overview': 'fullsimlight/fullsimlight/index.md'
-        - 'ATLAS specific Information': 'fullsimlight/fsl/index.md'
-        - 'Other experiments': 'fullsimlight/gmclash/index.md'
-
     - 'Plugin Architecture':
-        - 'Plugin Examples': 'fullsimlight/plugins/index.md'
-        - 'Plugin Support': 'plugin_support.md'
+      - 'Plugin Examples': 'plugin_examples.md'
+      - 'Plugin Support': 'plugin_support.md'
 
+    - Simulation tools:
+      - 'File System Manager': 'file_manager.md'
+      - 'Site Manager': 'site_manager.md'
+      - 'Policy Manager': 'policy_manager.md'
+      
     - Visualization:
-        - 'How to use': 'fullsimlight/plugin-support/index.md'
-
+      - 'CGSim Application': 'visualization.md'
+      
     - For Developers:
-        - 'Build the Libraries and Tools': 'dev/index.md'
-        - 'Troubleshooting': 'dev/troubleshooting.md'
-        - 'Contributing to the Documentation': 'dev/docs-contrib.md'
+        - 'Troubleshooting': 'troubleshooting.md'
+        - 'Contributing to the Documentation': 'docs-contrib.md'
         - 'Dev FAQ': 'dev/dev-faq.md'
+
     - FAQ: 'faq.md'
     - Papers & Presentations: 'papers.md'
-      #   - 'Public': 'papers/public.md'
-      #  - 'Internal': 'papers/internal.md'
-    - Team & History: 'about/team.md'
-    - Contacts: 'about/contacts.md'
+    - Team & History: 'team.md'
+    - Contact: 'contact.md'
 
 extra_css:
     - material_nested_lists_rendering.css

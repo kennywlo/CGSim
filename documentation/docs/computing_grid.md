@@ -1,0 +1,97 @@
+#Getting Started with CGSim
+
+
+## Platform
+
+Basic Layout of the Computing Grid Platform instantiated by CGSim.
+
+```bash
+  +---------+                      +---------+                    +---------+
+  | Site0   |                      | Site1   |      ......        | SiteN   |
+  |         |                      |         |                    |         |
+  +---------+                      +---------+                    +---------+
+    |  |  |                        |  |   |                       | |  |
+    |  |  |                        |  |   |                       | |  |
+    |  |_ |_ _ _                   |  |   |_ _               _ _ _| |  |_ _
+    v    v      v                  v  v       v             v       v      v
+  +----+ +----+ +----+         +----+ +----+ +----+       +----+ +----+ +----+
+  |Comm| |CPU0| |... |         |Comm| |CPU0| |... |       |Comm| |CPU0| |... |
+  +----+ +----+ +----+         +----+ +----+ +----+       +----+ +----+ +----+
+    ^                            ^                            ^
+    |                            |                            |
+    |                            |                            |
+    |[Link: To Other Sites]      |[Link: To Other Sites]      |[Link: To Other Sites]
+    |                            |                            |
+    |                            |                            |
+    v                            v                            v
+  +---------+                   +---------+                  +---------+
+  | OTHER   |                   | OTHER   |                  | OTHER   |
+  | SITES   |                   | SITES   |                  | SITES   |
+  +---------+                   +---------+                  +---------+
+    |                            |                            |
+    |                            |                            |
+    |                            |                            |
+    |                            |                            |
+    |                            |                            |
+    v                            v                            v
+  +----+ +----+ +----+         +----+ +----+ +----+       +----+ +----+ +----+
+  |Comm| |CPU0| |... |         |Comm| |CPU0| |... |       |Comm| |CPU0| |... |
+  +----+ +----+ +----+         +----+ +----+ +----+       +----+ +----+ +----+
+```
+
+
+
+
+## Sample Site
+
+```json
+"Site0": 
+  {
+    "SITE_PROPERTIES": 
+    {
+      "storage_capacity_bytes": "20000000000000000"
+    },
+    "CPUInfo": 
+    [
+      {
+        "units": 100,
+        "speed": 20000000.0,
+        "cores": 20,
+        "BW_CPU": "2817GBps",
+        "LAT_CPU": "88ns",
+        "properties": [
+          {
+            "ram": "64GB"
+          }
+        ],
+        "disks": [
+          {
+            "name": "SITE0_C0_CALIBDISK",
+            "read_bw": "4750MBps",
+            "write_bw": "1581MBps"
+          }
+        ]
+      },
+      {
+        "units": 1000,
+        "speed": 24000000.0,
+        "cores": 28,
+        "BW_CPU": "2576GBps",
+        "LAT_CPU": "44ns",
+        "properties": [
+          {
+            "ram": "64GB"
+          }
+        ],
+        "disks": [
+          {
+            "name": "SITE0_C1_CALIBDISK",
+            "read_bw": "3886MBps",
+            "write_bw": "2531MBps"
+          }
+        ]
+      }
+    ],
+    "files": []
+  }
+```

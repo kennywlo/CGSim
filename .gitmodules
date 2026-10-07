@@ -1,0 +1,3 @@
+[submodule "examples/Rubin-Plugin"]
+	path = examples/Rubin-Plugin
+	url = https://github.com/REDWOOD24/Rubin-Plugin.git

@@ -1,35 +1,44 @@
 cmake_minimum_required(VERSION 3.12)
 
 message(STATUS "Cmake version ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}.${CMAKE_PATCH_VERSION}")
-project(CGSim VERSION 1.1)
+project(CGSim VERSION 2.0)
+
+##Remote Build
+option(remote "Enable Remote Build" OFF)
 
 # Disable annoying warnings
-#add_definitions(-DSPDLOG_FMT_EXTERNAL)
 add_definitions("-DBOOST_ALLOW_DEPRECATED_HEADERS")
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/CMakeModules/")
-#set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+if(NOT remote)
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/CMakeModules/")
 # Find required packages
-find_package(Boost     REQUIRED)
-find_package(SimGrid   REQUIRED)
-find_package(SQLite3   REQUIRED)
-find_package(spdlog    REQUIRED)
-find_package(fmt REQUIRED)
+find_package(SimGrid REQUIRED)
+endif()
+
+find_package(Boost REQUIRED)
+
 
 # Add json subdir
 add_subdirectory(json)
 list(APPEND BUILT_PACKAGES "json")
 
+if(NOT remote)
 # Include directories
 include_directories(${SimGrid_INCLUDE_DIR} ${Boost_INCLUDE_DIR} ${CMAKE_SOURCE_DIR}/json/single_include)
+else()
+include_directories(${Boost_INCLUDE_DIR} ${CMAKE_SOURCE_DIR}/json/single_include)
+include_directories(simgrid/include/ simgrid/build/include/)
+endif()
+
 include_directories(include/)
+include_directories(include/core/)
+include_directories(include/global_managers/)
+include_directories(include/util/)
+include_directories(include/cgsim/)
 
 # Source files
-file(GLOB_RECURSE SOURCE_FILES
-#        "src/*.cpp"
-        "util/*.cpp"
-)
+file(GLOB_RECURSE SOURCE_FILES "src/cgsim/*.cpp" "src/util/*.cpp" "src/core/*.cpp" "src/global_managers/*.cpp")
 
 # Build the library
 add_library(CGSim SHARED ${SOURCE_FILES})
@@ -37,18 +46,21 @@ add_library(CGSim SHARED ${SOURCE_FILES})
 # Generating the executable
 add_executable(cg-sim src/main.cpp)
 
+if(NOT remote)
 target_link_libraries(
 	CGSim
 	${SimGrid_LIBRARY}
-        ${Boost_LIBRARIES}
-        SQLite::SQLite3
-        spdlog::spdlog
-	fmt::fmt
+	Boost::boost
 )
+else()
+target_link_libraries(
+	CGSim
+	"${CMAKE_SOURCE_DIR}/simgrid/build/lib/libsimgrid.so"
+	Boost::boost
+)
+endif()
 
-target_link_libraries(cg-sim
-    CGSim
-)
+target_link_libraries(cg-sim CGSim)
 
 # ==============================
 # Installation Configuration
@@ -65,7 +77,7 @@ install(TARGETS CGSim
 )
 
 # Install header files
-install(FILES include/CGSim.h include/file_manager.h include/logger.h include/job.h include/DispatcherPlugin.h include/host_extensions.h
+install(FILES include/CGSim.h include/global_managers/file_manager.h include/util/logger.h include/cgsim/job.h include/cgsim/plugin.h include/cgsim/site.h include/cgsim/cpu.h include/cgsim/disk.h "include/cgsim/file.h" include/global_managers/resource_manager.h include/global_managers/policy_manager.h include/util/units_parser.h include/util/statistics.h
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/CGSim)
 
 # Install the executable

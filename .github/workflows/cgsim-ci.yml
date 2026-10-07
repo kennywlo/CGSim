@@ -1,0 +1,46 @@
+name: CGSim CI
+on: [push, pull_request, workflow_dispatch]
+
+permissions:
+  contents: read
+
+env:
+  SIMGRID_VERSION: "3.36"
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build libboost-dev curl perl python3
+
+      - uses: actions/cache@v6
+        id: simgrid
+        with:
+          path: ${{ runner.temp }}/simgrid-${{ env.SIMGRID_VERSION }}
+          key: simgrid-${{ env.SIMGRID_VERSION }}-${{ runner.os }}-${{ runner.arch }}
+
+      - if: steps.simgrid.outputs.cache-hit != 'true'
+        run: |
+          curl -fL "https://framagit.org/simgrid/simgrid/-/archive/v${SIMGRID_VERSION}/simgrid-v${SIMGRID_VERSION}.tar.gz" | tar xz -C "$RUNNER_TEMP"
+          cmake -S "$RUNNER_TEMP/simgrid-v${SIMGRID_VERSION}" -B "$RUNNER_TEMP/simgrid-build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$RUNNER_TEMP/simgrid-${SIMGRID_VERSION}" -Dminimal-bindings=ON
+          cmake --build "$RUNNER_TEMP/simgrid-build" --parallel 2
+          cmake --install "$RUNNER_TEMP/simgrid-build"
+
+      - run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSimGrid_PATH="$RUNNER_TEMP/simgrid-${SIMGRID_VERSION}"
+          cmake --build build --parallel
+          test -x build/cg-sim
+          test -f build/libCGSim.so
+          cmake --install build --prefix "$RUNNER_TEMP/cgsim-install"
+          test -x "$RUNNER_TEMP/cgsim-install/bin/cg-sim"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: cgsim-${{ github.sha }}
+          path: |
+            build/cg-sim
+            build/libCGSim.so

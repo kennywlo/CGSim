@@ -1,0 +1,1 @@
+**CGSim @ PMBS 2025:** S. S. Vatsavai *et al.*, “CGSim: A Simulation Framework for Large Scale Distributed Computing Environment,” in *Proc. SC ’25 Workshops of the International Conference for High Performance Computing, Networking, Storage and Analysis*, pp. 1478–1483, 2025, doi: 10.1145/3731599.3769277.

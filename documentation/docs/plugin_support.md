@@ -1,261 +1,717 @@
-# Plugins
+# Plugin Support
 
-Plugins can be used to define custom workload allocation algorithms in the simulator to test their performance and optimize them by collecting output statistics. 
+CGSim plugins are user defined shared libraries that allow the user to provide custom  workloads, job-placement logic, optional file-source decisions, and lifecycle callbacks used during a simulation.
 
-## Plugin Support
+CGSim's philosophy behind this plugin mechanism is to provide users with a modular design to test custom policies without needing to modify the core code.
 
-`SimATLAS` provides the user support with writing plugins by providing the abstract class which one has to override. This abstract class serves as a link to interface custom user designed work allocation algorithms to the simulator.
+## Configuration
 
-### CMake Support
+The plugin path in the CGSim configuration is set via:
 
-A header files containing the relevant abstract class is automatically installed with SimATLAS installation. To use this in your project you can simply use the find_package command in your CMakeLists.txt
+```json
+{
+  "Plugin": "/path/to/libMyPlugin.so"
+}
+```
+
+
+## Writing a Plugin
+
+A plugin can follow this structure:
+
+```text
+plugin/
+├── CMakeModules/
+│   └── FindSimGrid.cmake
+├── include/
+│   ├── dispatcher.h
+│   ├── output.h
+│   └── workload_manager.h
+├── src/
+│   ├── MyPlugin.cpp
+│   ├── dispatcher.cpp
+│   ├── output.cpp
+│   └── workload_manager.cpp
+└── CMakeLists.txt
+```
+
+The plugin entrypoint stays in `src/MyPlugin.cpp`, while workload generation, scheduling, and callback/output logic can be split into separate helper classes.
+
+## CMakeLists.txt
 
 ```cmake
-find_package(SimATLAS)
-```
+cmake_minimum_required(VERSION 3.12)
 
-Then one can simply link as
-```cmake
-target_include_directories( YourPlugin PUBLIC ${SimATLAS_INCLUDE_DIR})
-```
-
-### Abstract Class
-<!---->
-The header file which contains the abstract class to help create plugins is `DispatcherPlugin.h`.
-
-```c++
-#ifndef DISPATCHERPLUGIN_H
-#define DISPATCHERPLUGIN_H
-
-#include "job.h"
-#include <simgrid/s4u.hpp>
-
-class DispatcherPlugin {
-public:
-    // Constructor
-    DispatcherPlugin(){};
-
-    // Destructor
-    virtual ~DispatcherPlugin() = default;
-
-    // Pure virtual function must be implemented by derived classes to assign Jobs
-    virtual Job* assignJob(Job* job) = 0;
-
-    // Pure virtual function must be implemented by derived classes to assign Resources
-    virtual void getResourceInformation(simgrid::s4u::NetZone* platform) = 0;
-
-    // Virtual function can be implemented by derived classes when a job finishes
-    virtual void onJobEnd(Job* job){};
-
-    // Virtual function can be implemented by derived classes if they want to execute code on simulation end
-    virtual void onSimulationEnd(){};
-
-    // Delete copy constructor and copy assignment operator
-    DispatcherPlugin(const DispatcherPlugin&) = delete;
-    DispatcherPlugin& operator=(const DispatcherPlugin&) = delete;
-
-    // Delete move constructor and move assignment operator
-    DispatcherPlugin(DispatcherPlugin&&) = delete;
-    DispatcherPlugin& operator=(DispatcherPlugin&&) = delete;
-
-};
-
-#endif //DISPATCHERPLUGIN_H
-```
-
-It contains two purely virtual methods which the user must implement and two which are optional. One of the methods the user ***must*** implement is
-
-```c++
-    virtual void getResourceInformation(simgrid::s4u::NetZone* platform);
-```
-
-This method provides the user with a SimGrid platform which contains information about the resources available on the grid. Using this one can incorporate resource information in their custom allocation algorithm. The second virtual method the user ***must*** implement is
-
-```c++
-   virtual Job* assignJob(Job* job);
-```
-
-This method provides the user with access to a Job which contains information about the workload, i.e. number of FLOPs to be executed, number of files to be read or written, etc. A job is defined in the simulator as shown below
-
-```c++
-struct Job {
-    int                                         _id{};
-    std::string                                  id{};
-    int                                          flops{};
-    std::unordered_map<std::string, size_t>     input_files{};
-    std::unordered_map<std::string, size_t>     output_files{};
-    size_t                                      input_storage{};
-    size_t                                      output_storage{};
-    int                                         priority{};
-    int                                         cores{};
-    std::string                                 mount{};
-    std::string                                 disk{};
-    std::string                                 comp_host{};
-    std::string                                 comp_site{};
-    bool operator<(const Job& other) const {if(priority == other.priority){return _id > other._id;} return priority < other.priority;}
-};
-```
-The goal of any workload allocation algorithm is to take information about the resources and workload and assign the Job a comp_site, comp_host, disk. This is then the output of the method which goes out for execution in SimGrid.
-
-The final two optional methods the user can implement are
-
-```c++
-   virtual void onJobEnd();
-```
-This will be called on the Job end.
-
-```c++
-   virtual void onSimulationEnd();
-```
-This will be called on the simulation end.
-
-## Writing Plugins
-
-As an example `SimATLAS` comes with a simple dispatcher plugin called `SimpleDispatcherPlugin` which uses a simple algorithm to assign jobs to resources. This example serves as a blueprint to write further more complicated algorithms. Before proceeding let us set up our project. Navigating to the directory of choice we can run on the terminal
-
-```bash
-mkdir simple-test-plugin
-cd simple-test-plugin
-touch CMakeLists.txt
-mkdir build
-mkdir src
-mkdir include
-mkdir CMakeModules
-cd src
-touch SimpleDispatcherPlugin.cpp
-touch simple_dispatcher.cpp
-cd ../include
-touch simple_dispatcher.h 
-```
-In the `CMakeModules` directory the `FindSimGrid.cmake` `FindFSMod.cmake` files should be copied. These files can be found in the plugin example in the `SimATLAS` project. [Click Here!](https://github.com/REDWOOD24/ATLAS-GRID-SIMULATION/tree/development/dispatch_plugins/simple-test-plugin/CMakeModules) The directory structure should then look like
-
-```bash
-simple-test-plugin
-├── CMakeLists.txt
-├── CMakeModules
-│   ├── FindFSMod.cmake
-│   └── FindSimGrid.cmake
-├── build
-├── include
-│   └── simple_dispatcher.h
-└── src
-    ├── SimpleDispatcherPlugin.cpp
-    └── simple_dispatcher.cpp
-```
-
-Opening up the CMakeLists.txt file, we call our project SimpleDispatcherPlugin and configure the file as follows:
-
-
-```cmake
-# Set up the project.
-cmake_minimum_required( VERSION 3.2 )
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-project( "SimpleDispatcherPlugin" )
 
-# Disable annoying warnings
+project("MyPlugin")
+
 add_definitions("-DBOOST_ALLOW_DEPRECATED_HEADERS")
+
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/CMakeModules/")
 
-# Find and set the source file.
 include_directories(include/)
-file(GLOB SOURCES src/*.cpp )
 
-# Set up the library.
-add_library(SimpleDispatcherPlugin SHARED ${SOURCES})
+file(GLOB SOURCES src/*.cpp)
 
-# Find SimGrid, SimATLAS, Boost, and FSMOD
+add_library(MyPlugin SHARED ${SOURCES})
+
 find_package(SimGrid REQUIRED)
-find_package(FSMOD REQUIRED)
 find_package(Boost REQUIRED)
-find_package(SimATLAS REQUIRED)
+find_package(CGSim REQUIRED)
 
-#Link libraries and Include Directories
-target_link_libraries ( SimpleDispatcherPlugin PUBLIC ${SimGrid_LIBRARY} ${Boost_LIBRARIES} ${FSMOD_LIBRARY})
-target_include_directories( SimpleDispatcherPlugin PUBLIC ${SimGrid_INCLUDE_DIR} ${SimATLAS_INCLUDE_DIR} ${Boost_INCLUDE_DIR} ${FSMOD_INCLUDE_DIR})
+target_link_libraries(
+    MyPlugin
+    PUBLIC
+    ${SimGrid_LIBRARY}
+    ${Boost_LIBRARIES}
+    CGSim::CGSim
+)
+
+target_include_directories(
+    MyPlugin
+    PUBLIC
+    ${SimGrid_INCLUDE_DIR}
+    ${CGSim_INCLUDE_DIR}
+    ${Boost_INCLUDE_DIR}
+)
 ```
 
-Now we are ready to write our Plugin. This will require at least two classes and one additional function at the end of the `SimpleDispatcherPlugin.cpp` file.
+Place `FindSimGrid.cmake` in:
 
-```c++
-class SIMPLE_DISPATCHER;
-class SimpleDispatcherPlugin;
-extern "C" SimpleDispatcherPlugin* createSimpleDispatcherPlugin()
+```text
+plugin/CMakeModules/FindSimGrid.cmake
 ```
 
-- The first class `SIMPLE_DISPATCHER` is the actual implementation class which is defined in the `simple_dispatcher.h` and `simple_dispatcher.cpp` files, This class contains the custom workload allocation algorithm (see the one written in the code repo as a reference) [Click Here!](https://github.com/REDWOOD24/ATLAS-GRID-SIMULATION/blob/development/dispatch_plugins/simple-test-plugin/include/simple_dispatcher.h)
+It can be found here [CMakeModules](https://github.com/REDWOOD24/CGSim/tree/main/cmake/CMakeModules). The following line makes that module available to `find_package(SimGrid REQUIRED)`:
 
-- The second class `SimpleDispatcherPlugin` is necessary for defining the plugin and ***must have the same name as the name specified within the add_library command in the CMakeLists.txt file.*** This class will inherit from the `DispatcherPlugin` class, which is the abstract class provided by SimATLAS to allow it to interface with the simulator. This class must always be defined, and override the purely virtual functions in the abstract class.
-
-- Finally the function `createSimpleDispatcherPlugin` is neccesary for properly loading in the plugin to the simulator and ***must always have the name, create + name of plugin class.*** This function must always be defined.
-
-The SimpleDispatcherPlugin class and createSimpleDispatcherPlugin function are mostly boiler plate code and are defined in the `SimpleDispatcherPlugin.cpp` file. Being mostly boiler plate they can be taken from the example in the code shown below with minimal adjustments
-
-```c++
-#include "DispatcherPlugin.h"
-#include "simple_dispatcher.h"
+```cmake
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/CMakeModules/")
+```
 
 
-class SimpleDispatcherPlugin:public DispatcherPlugin {
+## Build
 
+From the `plugin/` directory:
+
+```bash
+mkdir build
+cd build
+cmake ..
+make -j
+```
+
+A typical Linux build produces:
+
+```text
+build/libMyPlugin.so
+```
+
+A typical macOS build produces:
+
+```text
+build/libMyPlugin.dylib
+```
+
+
+## Workload Manager
+
+### `include/workload_manager.h`
+
+```cpp
+#ifndef WORKLOAD_MANAGER_H
+#define WORKLOAD_MANAGER_H
+
+#include "CGSim.h"
+
+class WorkloadManager
+{
 public:
-    SimpleDispatcherPlugin();
-    virtual Job* assignJob(Job* job) final override;
-    virtual void getResourceInformation(simgrid::s4u::NetZone* platform) final override;
-    virtual void onJobEnd(Job* job) final override;
-    virtual void onSimulationEnd() final override;
+    WorkloadManager() = default;
+    ~WorkloadManager() = default;
 
-private:
-    std::unique_ptr<SIMPLE_DISPATCHER> sd = std::make_unique<SIMPLE_DISPATCHER>();
-
+    JobQueue getWorkload();
 };
 
-SimpleDispatcherPlugin::SimpleDispatcherPlugin()
-{
-  std::cout << "Loading the Job Dispatcher from Simple Dispatcher Plugin ...." << std::endl;
-}
+#endif
+```
 
-void SimpleDispatcherPlugin::getResourceInformation(simgrid::s4u::NetZone* platform)
-{
-  sd->setPlatform(platform);
-}
+### `src/workload_manager.cpp`
 
-Job* SimpleDispatcherPlugin::assignJob(Job* job)
-{
-  return sd->assignJobToResource(job);
-}
+```cpp
+#include "workload_manager.h"
 
-void SimpleDispatcherPlugin::onJobEnd(Job* job)
+JobQueue WorkloadManager::getWorkload()
 {
-  sd->free(job);
-}
+    JobQueue workload;
 
-void SimpleDispatcherPlugin::onSimulationEnd()
-{
-  sd->cleanup();
-}
+    auto* job = new Job();
 
-extern "C" SimpleDispatcherPlugin* createSimpleDispatcherPlugin()
-{
-    return new SimpleDispatcherPlugin;
+    job->jobid = 1;
+    job->creation_time = 0.0;
+    job->flops = 1000000000;
+    job->cores = 1;
+
+    workload.push(job);
+
+    return workload;
 }
 ```
 
-The virtual functions are overrided with custom functionality from the implementation class. With all this completed, we can now move into the build folder and run.
+`getWorkload()` returns the `JobQueue` used by CGSim.
 
-```bash
-cmake ..
-make
+A job can also define input files, output files, metadata:
+
+```cpp
+auto* job = new Job();
+
+job->jobid = 2;
+job->creation_time = 10.0;
+job->flops = 5000000000;
+job->cores = 4;
+
+job->input_files.insert("input.dat");
+
+job->output_files["result.dat"] = 400000000; //bytes
+
+job->metadata["type"] = "analysis";
+
+workload.push(job);
 ```
 
-In the build folder you will see:
+Jobs can be linked with parent/child dependencies by using `add_parent()` and `add_child()`.
 
-```bash
-libSimpleDispatcherPlugin.dylib (Mac)
-libSimpleDispatcherPlugin.so (Linux)
+A dependent job starts with a default `creation_time` of -1.0 so that CGSim does not submit it until its parent dependencies are satisfied.
+
+```cpp
+JobQueue WorkloadManager::getWorkload()
+{
+    JobQueue workload;
+
+    auto* parent = new Job();
+
+    parent->jobid = 1;
+    parent->creation_time = 0.0;
+    parent->flops = 1000000000;
+    parent->cores = 1;
+
+    auto* child = new Job();
+
+    child->jobid = 2;
+    child->creation_time = -1.0; //Don't have to set this, CGSim sets it by default
+    child->flops = 2000000000;
+    child->cores = 1;
+
+    // The child depends on the parent.
+    child->add_parent(parent->jobid);
+
+    // Activate the child 10 simulated seconds after the parent finishes.
+    parent->add_child(child->jobid, 10.0);
+
+    workload.push(parent);
+    workload.push(child);
+
+    return workload;
+}
 ```
 
-The path to these shared libraries can then be specified in the simulator configuration and the custom allocation algorithm can be tested!
+In this example:
+
+- job `1` is submitted at simulation time `0.0`;
+- job `2` remains dependency-driven because its initial `creation_time` is negative;
+- job `2` becomes eligible only after job `1` finishes;
+- the `10.0` value passed to `add_child()` adds a 10-second simulated delay before the child is submitted.
+
+For a child with multiple parents, register every parent on the child and register the child on each parent:
+
+```cpp
+child->add_parent(parent_a->jobid);
+child->add_parent(parent_b->jobid);
+
+parent_a->add_child(child->jobid, 0.0);
+parent_b->add_child(child->jobid, 0.0);
+```
+
+CGSim waits until all parents have completed before activating the child.
+
+## Dispatcher
+
+### `include/dispatcher.h`
+
+```cpp
+#ifndef DISPATCHER_H
+#define DISPATCHER_H
+
+#include "CGSim.h"
+
+class Dispatcher
+{
+public:
+    Dispatcher() = default;
+    ~Dispatcher() = default;
+
+    Job* assignJob(Job* job);
+};
+
+#endif
+```
+
+### `src/dispatcher.cpp`
+
+```cpp
+#include "dispatcher.h"
+
+Job* Dispatcher::assignJob(Job* job)
+{
+    auto* sm = CGSim::get_site_manager();
+
+    for (const auto& site_name : sm->get_all_sites())
+    {
+        auto* site = sm->get_site(site_name);
+
+        for (auto* cpu : site->cpus)
+        {
+            if (sm->get_cores_available(cpu) <
+                static_cast<unsigned int>(job->cores))
+            {
+                continue;
+            }
+
+            job->comp_site = site_name;
+            job->comp_host = cpu->get_name();
+
+            if (!cpu->get_disks().empty())
+            {
+                job->disk =
+                    cpu->get_disks().front()->get_name();
+            }
+
+            return job;
+        }
+    }
+
+    job->comp_site.clear();
+    job->comp_host.clear();
+
+    return job;
+}
+```
+
+`assignJob()` should modify and return the supplied `Job*`.
+
+For direct host assignment, set:
+
+```cpp
+job->comp_site;
+job->comp_host;
+```
+
+For jobs using disk I/O, also set:
+
+```cpp
+job->disk;
+```
+
+To place a job into a site's pending queue, set the site and leave the host empty:
+
+```cpp
+job->comp_site = "SiteA";
+job->comp_host.clear();
+```
+
+To leave the job globally pending:
+
+```cpp
+job->comp_site.clear();
+job->comp_host.clear();
+```
+
+## Output and Callbacks
+
+### `include/output.h`
+
+```cpp
+#ifndef OUTPUT_H
+#define OUTPUT_H
+
+#include "CGSim.h"
+
+class Output
+{
+public:
+    Output() = default;
+    ~Output() = default;
+
+    void onSimulationStart();
+    void onSimulationEnd();
+    void onJobFinish(Job* job);
+};
+
+#endif
+```
+
+### `src/output.cpp`
+
+```cpp
+#include "output.h"
+
+void Output::onSimulationStart()
+{
+    CG_SIM_LOG_INFO("Simulation started");
+}
+
+void Output::onSimulationEnd()
+{
+    CG_SIM_LOG_INFO("Simulation finished");
+}
+
+void Output::onJobFinish(Job* job)
+{
+    CG_SIM_LOG_INFO(
+        "Job {} finished at simulation time {}",
+        job->jobid,
+        simgrid::s4u::Engine::get_clock()
+    );
+}
+```
+
+## Plugin
+
+### `src/MyPlugin.cpp`
+
+```cpp
+#include "CGSim.h"
+
+#include "dispatcher.h"
+#include "output.h"
+#include "workload_manager.h"
+
+#include <memory>
+
+class MyPlugin : public CGSim::Plugin
+{
+public:
+    MyPlugin() = default;
+
+    JobQueue getWorkload() final override
+    {
+        return workload_manager->getWorkload();
+    }
+
+    Job* assignJob(Job* job) final override
+    {
+        return dispatcher->assignJob(job);
+    }
+
+    void onSimulationStart() final override
+    {
+        output->onSimulationStart();
+    }
+
+    void onSimulationEnd() final override
+    {
+        output->onSimulationEnd();
+    }
+
+    void onJobFinish(Job* job) final override
+    {
+        output->onJobFinish(job);
+    }
+
+private:
+    std::unique_ptr<Dispatcher> dispatcher =
+        std::make_unique<Dispatcher>();
+
+    std::unique_ptr<WorkloadManager> workload_manager =
+        std::make_unique<WorkloadManager>();
+
+    std::unique_ptr<Output> output =
+        std::make_unique<Output>();
+};
+
+extern "C" CGSim::Plugin* createMyPlugin()
+{
+    return new MyPlugin();
+}
+```
+
+The plugin class must implement:
+
+```cpp
+virtual JobQueue getWorkload() = 0;
+virtual Job* assignJob(Job* job) = 0;
+```
+
+All other callbacks are optional.
+
+## Factory Naming
+
+The exported factory name is derived from the shared-library filename.
+
+For:
+
+```text
+libMyPlugin.so
+```
+
+export:
+
+```cpp
+extern "C" CGSim::Plugin* createMyPlugin()
+{
+    return new MyPlugin();
+}
+```
+
+For:
+
+```text
+libDataAwarePlugin.so
+```
+
+export:
+
+```cpp
+extern "C" CGSim::Plugin* createDataAwarePlugin()
+{
+    return new DataAwarePlugin();
+}
+```
 
 
+## Optional Plugin Callbacks
 
+### Simulation
+
+```cpp
+void beforeSimulationStart() override;
+void onSimulationStart() override;
+void onSimulationEnd() override;
+```
+
+### Job Lifecycle
+
+```cpp
+void onJobSubmission(Job* job) override;
+void onJobSitePending(Job* job) override;
+void onJobAssignment(Job* job) override;
+void onJobFailure(Job* job) override;
+
+void onJobExecutionStart(
+    Job* job,
+    simgrid::s4u::Exec const& exec
+) override;
+
+void onJobExecutionEnd(
+    Job* job,
+    simgrid::s4u::Exec const& exec
+) override;
+
+void onJobFinish(Job* job) override;
+
+void onJobTransferStart(
+    Job* job,
+    simgrid::s4u::Mess const& message
+) override;
+
+void onJobTransferEnd(
+    Job* job,
+    simgrid::s4u::Mess const& message
+) override;
+```
+
+### Job File Transfers
+
+```cpp
+void onFileTransferStart(
+    Job* job,
+    const std::string& filename,
+    const unsigned long long filesize,
+    simgrid::s4u::Comm const& comm,
+    const std::string& src_site,
+    const std::string& dst_site
+) override;
+
+void onFileTransferEnd(
+    Job* job,
+    const std::string& filename,
+    const unsigned long long filesize,
+    simgrid::s4u::Comm const& comm,
+    const std::string& src_site,
+    const std::string& dst_site
+) override;
+```
+
+### Job File Reads
+
+```cpp
+void onFileReadStart(
+    Job* job,
+    const std::string& filename,
+    const unsigned long long filesize,
+    simgrid::s4u::Io const& io
+) override;
+
+void onFileReadEnd(
+    Job* job,
+    const std::string& filename,
+    const unsigned long long filesize,
+    simgrid::s4u::Io const& io
+) override;
+```
+
+### Job File Writes
+
+```cpp
+void onFileWriteStart(
+    Job* job,
+    const std::string& filename,
+    const unsigned long long filesize,
+    simgrid::s4u::Io const& io
+) override;
+
+void onFileWriteEnd(
+    Job* job,
+    const std::string& filename,
+    const unsigned long long filesize,
+    simgrid::s4u::Io const& io
+) override;
+```
+
+### User File Transfers
+
+```cpp
+void onUserFileTransferStart(
+    const std::string& filename,
+    const unsigned long long filesize,
+    simgrid::s4u::Comm const& comm,
+    const std::string& src_site,
+    const std::string& dst_site,
+    const std::string& metadata
+) override;
+
+void onUserFileTransferEnd(
+    const std::string& filename,
+    const unsigned long long filesize,
+    simgrid::s4u::Comm const& comm,
+    const std::string& src_site,
+    const std::string& dst_site,
+    const std::string& metadata
+) override;
+```
+
+### User File Reads
+
+```cpp
+void onUserFileReadStart(
+    const std::string& filename,
+    const unsigned long long& filesize,
+    const std::string& site,
+    const std::string& cpu,
+    const std::string& disk,
+    simgrid::s4u::Io const& io
+) override;
+
+void onUserFileReadEnd(
+    const std::string& filename,
+    const unsigned long long& filesize,
+    const std::string& site,
+    const std::string& cpu,
+    const std::string& disk,
+    simgrid::s4u::Io const& io
+) override;
+```
+
+### User File Writes
+
+```cpp
+void onUserFileWriteStart(
+    const std::string& filename,
+    const unsigned long long& filesize,
+    const std::string& site,
+    const std::string& cpu,
+    const std::string& disk,
+    simgrid::s4u::Io const& io
+) override;
+
+void onUserFileWriteEnd(
+    const std::string& filename,
+    const unsigned long long& filesize,
+    const std::string& site,
+    const std::string& cpu,
+    const std::string& disk,
+    simgrid::s4u::Io const& io
+) override;
+```
+
+## Input File Source Selection
+
+A plugin can control which replica is used for an input file by overriding:
+
+```cpp
+void onFileRequest(
+    Job* job,
+    std::string filename,
+    long long filesize,
+    std::unordered_set<std::string> file_locations,
+    std::string& source_site,
+    CGSim::FileTransferDecisionMode& mode
+) override;
+```
+
+Example:
+
+```cpp
+void MyPlugin::onFileRequest(
+    Job* job,
+    std::string filename,
+    long long filesize,
+    std::unordered_set<std::string> file_locations,
+    std::string& source_site,
+    CGSim::FileTransferDecisionMode& mode)
+{
+    if (file_locations.count(job->comp_site))
+    {
+        source_site = job->comp_site;
+        mode = CGSim::FileTransferDecisionMode::COPY;
+        return;
+    }
+
+    source_site = *file_locations.begin();
+    mode = CGSim::FileTransferDecisionMode::COPY;
+}
+```
+
+## Dispatch Controls
+
+A plugin can stop the current global dispatch pass with:
+
+```cpp
+bool stopGlobalJobDispatching() override;
+```
+
+Example:
+
+```cpp
+bool MyPlugin::stopGlobalJobDispatching()
+{
+    return CGSim::get_site_manager()
+               ->get_grid_cpu_utilization() >= 0.90;
+}
+```
+
+A plugin can configure the maximum number of global assignment retries with:
+
+```cpp
+int maxJobRetries() override;
+```
+
+Example:
+
+```cpp
+int MyPlugin::maxJobRetries()
+{
+    return 100;
+}
+```
