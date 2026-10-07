@@ -1,0 +1,163 @@
+{
+  "schema_version": "0.2",
+  "method": "dimension",
+  "algorithm": "lsst.ctrl.bps.quantum_clustering_funcs.dimension_clustering",
+  "clusters": [
+    {
+      "name": "visit_detector",
+      "task_labels": [
+        "isr",
+        "injectExposure",
+        "calibrateImage",
+        "injectVisit",
+        "transformPreSourceTable"
+      ],
+      "dimensions": [
+        "visit",
+        "detector"
+      ],
+      "equal_dimensions": [
+        [
+          "visit",
+          "exposure"
+        ]
+      ],
+      "partition_dimensions": [],
+      "partition_max_clusters": null,
+      "max_quanta": null,
+      "request_memory_mb": null,
+      "request_cpus": 1
+    },
+    {
+      "name": "makeWarpTract",
+      "task_labels": [
+        "makeDirectWarp",
+        "makePsfMatchedWarp"
+      ],
+      "dimensions": [
+        "tract",
+        "visit"
+      ],
+      "equal_dimensions": [],
+      "partition_dimensions": [],
+      "partition_max_clusters": null,
+      "max_quanta": null,
+      "request_memory_mb": null,
+      "request_cpus": 1
+    },
+    {
+      "name": "coadd",
+      "task_labels": [
+        "assembleCoadd",
+        "assembleCellCoadd",
+        "injectCoadd",
+        "templateGen",
+        "detection"
+      ],
+      "dimensions": [
+        "tract",
+        "patch",
+        "band"
+      ],
+      "equal_dimensions": [],
+      "partition_dimensions": [],
+      "partition_max_clusters": null,
+      "max_quanta": null,
+      "request_memory_mb": 16384,
+      "request_cpus": 1
+    },
+    {
+      "name": "objectTable",
+      "task_labels": [
+        "computeObjectEpochs",
+        "writeObjectTable",
+        "transformObjectTable"
+      ],
+      "dimensions": [
+        "tract",
+        "patch"
+      ],
+      "equal_dimensions": [],
+      "partition_dimensions": [],
+      "partition_max_clusters": null,
+      "max_quanta": null,
+      "request_memory_mb": 16384,
+      "request_cpus": 1
+    },
+    {
+      "name": "diffim",
+      "task_labels": [
+        "buildTemplate",
+        "subtractImages",
+        "filterDiaSrcCat",
+        "detectAndMeasureDiaSources",
+        "rbClassify",
+        "filterDiaSourcePostReliability",
+        "transformDiaSourceCat"
+      ],
+      "dimensions": [
+        "visit",
+        "detector"
+      ],
+      "equal_dimensions": [],
+      "partition_dimensions": [],
+      "partition_max_clusters": null,
+      "max_quanta": null,
+      "request_memory_mb": 8000,
+      "request_cpus": 1
+    },
+    {
+      "name": "association",
+      "task_labels": [
+        "drpAssociation",
+        "drpDiaCalculation"
+      ],
+      "dimensions": [
+        "tract",
+        "patch"
+      ],
+      "equal_dimensions": [],
+      "partition_dimensions": [],
+      "partition_max_clusters": null,
+      "max_quanta": null,
+      "request_memory_mb": null,
+      "request_cpus": 1
+    },
+    {
+      "name": "recalibratedSourceTable",
+      "task_labels": [
+        "writeRecalibratedSourceTable",
+        "transformSourceTable"
+      ],
+      "dimensions": [
+        "visit",
+        "detector"
+      ],
+      "equal_dimensions": [],
+      "partition_dimensions": [],
+      "partition_max_clusters": null,
+      "max_quanta": null,
+      "request_memory_mb": null,
+      "request_cpus": 1
+    }
+  ],
+  "overhead": {
+    "pipetask_init_s": null,
+    "final_job_s": null,
+    "per_quantum_startup_s": null
+  },
+  "wms_retry": {
+    "max_retries": 3,
+    "memory_multiplier": null
+  },
+  "provenance": {
+    "source": "lsst/drp_pipe",
+    "yaml": "bps/clustering/HSC/DRP-RC2-clustering.yaml",
+    "resources": [
+      "bps/resources/HSC/DRP-RC2.yaml"
+    ],
+    "ref": "w.2026.37",
+    "commit": "ab5c2e5",
+    "memory_rule": "max over member tasks (assumption)"
+  }
+}

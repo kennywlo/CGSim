@@ -53,12 +53,25 @@ def load_qgraph_bundle(path):
     return top
 
 
+def dim_value(data_id, dim, spec):
+    """Dimension value for a quantum; equal_dimensions pairs [a, b] alias a dimension of one task to
+    another's (BPS equalDimensions, e.g. visit == exposure). Mirrors QGRAPH_WORKLOAD::dim_value."""
+    if dim in data_id:
+        return json.dumps(data_id[dim])
+    for a, b in spec.get("equal_dimensions", []):
+        if dim == a and b in data_id:
+            return json.dumps(data_id[b])
+        if dim == b and a in data_id:
+            return json.dumps(data_id[a])
+    return "null"
+
+
 def cluster_key(quantum, clustering):
     for spec in clustering["clusters"]:
         if quantum["task"] in spec["task_labels"]:
             key = spec["name"]
-            for dim in spec["dimensions"]:
-                key += "_" + json.dumps(quantum["data_id"][dim])
+            for dim in spec["dimensions"] + spec.get("partition_dimensions", []):
+                key += "_" + dim_value(quantum["data_id"], dim, spec)
             return key
     return f"sq_{quantum['task']}_{quantum['qid']}"
 

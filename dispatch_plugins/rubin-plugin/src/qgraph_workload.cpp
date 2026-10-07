@@ -78,6 +78,28 @@ long long QGRAPH_WORKLOAD::dataset_bytes(const std::string& dataset_type, const 
     return 100000000LL;
 }
 
+// Value of a dimension for a quantum's data ID. equal_dimensions pairs [a, b] say that dimension a of
+// one task is the same value as dimension b of another (BPS equalDimensions, e.g. visit == exposure,
+// so isr quanta, which carry exposure, cluster with calibrateImage quanta, which carry visit).
+static std::string dim_value(const json& data_id, const std::string& dim, const json& spec)
+{
+    if (data_id.contains(dim)) return data_id[dim].dump();
+    if (spec.contains("equal_dimensions"))
+        for (const auto& pair : spec["equal_dimensions"])
+        {
+            const std::string a = pair[0].get<std::string>(), b = pair[1].get<std::string>();
+            if (dim == a && data_id.contains(b)) return data_id[b].dump();
+            if (dim == b && data_id.contains(a)) return data_id[a].dump();
+        }
+    return "null";
+}
+
+// Spec value that may be absent or null (e.g. request_memory_mb when no resources file was used).
+static bool spec_has(const json& spec, const char* key)
+{
+    return spec.contains(key) && !spec[key].is_null();
+}
+
 std::string QGRAPH_WORKLOAD::cluster_key(const Quantum& q, const json& clustering)
 {
     for (const auto& spec : clustering["clusters"])
@@ -87,7 +109,12 @@ std::string QGRAPH_WORKLOAD::cluster_key(const Quantum& q, const json& clusterin
             if (label != q.task) continue;
             std::string key = spec["name"].get<std::string>();
             for (const auto& dim : spec["dimensions"])
-                key += "_" + q.data_id[dim.get<std::string>()].dump();
+                key += "_" + dim_value(q.data_id, dim.get<std::string>(), spec);
+            // partition dimensions split a cluster into separate jobs (BPS partitionDimensions;
+            // partition_max_clusters is recorded in the file but not enforced here)
+            if (spec.contains("partition_dimensions"))
+                for (const auto& dim : spec["partition_dimensions"])
+                    key += "_" + dim_value(q.data_id, dim.get<std::string>(), spec);
             return key;
         }
     }
@@ -161,8 +188,8 @@ void QGRAPH_WORKLOAD::setWorkload(CGSim::JobQueue& jobs)
         job->set_site(site);
 
         const json* spec = spec_of[key];
-        job->set_cores(spec ? (*spec)["request_cpus"].get<int>() : 1);
-        job->set_memory_usage(std::to_string(spec ? (*spec)["request_memory_mb"].get<double>() : 2048.0) + "MB");
+        job->set_cores(spec && spec_has(*spec, "request_cpus") ? (*spec)["request_cpus"].get<int>() : 1);
+        job->set_memory_usage(std::to_string(spec && spec_has(*spec, "request_memory_mb") ? (*spec)["request_memory_mb"].get<double>() : 2048.0) + "MB");
 
         double cpu_s = 0.0;
         for (long long qid : qids) {

@@ -103,12 +103,19 @@ def main():
     ap.add_argument("--default-bytes", type=int, default=100_000_000,
                      help="fallback size for inputs with a null bytes_est")
     ap.add_argument("--output-db", default="/tmp/rubin_real_bundle_output.db")
+    ap.add_argument("--clustering-json",
+                    help="use this clustering.json (e.g. from bps_clustering_to_json.py) instead of one "
+                         "cluster per task; tasks it does not name run as one job per quantum")
     args = ap.parse_args()
 
     os.makedirs(args.out_dir, exist_ok=True)
     manifest, quanta = load_bundle(args.manifest)
 
-    clustering = build_clustering(manifest, args.request_memory_mb, args.request_cpus)
+    if args.clustering_json:
+        with open(args.clustering_json) as f:
+            clustering = json.load(f)
+    else:
+        clustering = build_clustering(manifest, args.request_memory_mb, args.request_cpus)
     clustering_path = os.path.join(args.out_dir, "clustering.json")
     with open(clustering_path, "w") as f:
         json.dump(clustering, f, indent=2)

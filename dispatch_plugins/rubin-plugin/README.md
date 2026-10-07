@@ -55,6 +55,14 @@ python3 ../../rubin-data/generate_campaign.py    # synthetic demo: 624 quanta ->
 cg-sim -c ../../rubin-data/rubin_dag_config.json
 ```
 
+BPS clustering: `rubin-data/bps_clustering_to_json.py` converts an `lsst/drp_pipe` clustering YAML
+(`bps/clustering/...`, optionally at a weekly tag such as `w.2026.37`) into `clustering.json`, and with
+`--bundle` reports jobs and quanta per job on a real graph. Pass the result to the bundle harness with
+`--clustering-json`. The plugin supports `equal_dimensions` (e.g. `visit:exposure`) and
+`partition_dimensions`; tasks no cluster names run as one job per quantum. Generated files for the
+HSC RC2 and LSSTCam campaigns are in `rubin-data/clustering/`. Assumptions: `partitionMaxClusters` is
+not enforced, and cluster memory is the maximum of its tasks' `requestMemory`.
+
 Real QuantumGraph bundles run through `rubin-data/build_real_bundle_run_config.py` (see its
 docstring), then `cg-sim` and `rubin-data/verify_dag_order.py`.
 

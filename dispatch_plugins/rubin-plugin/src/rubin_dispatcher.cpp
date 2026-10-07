@@ -17,6 +17,7 @@ void RUBIN_DISPATCHER::findAvailableCPU(CGSim::Job* j)
         if(cpu->get_name().find("_communication") != std::string::npos) continue;
         if(cpu->get_name().find("JOB-SERVER") != std::string::npos) continue;
         if(cpu->get_cores_available() < j->get_cores()) continue;
+        if(cpu->get_memory_available() < CGSim::Utilities::parse_units_size(j->get_memory_usage())) continue;
         if(site->get_available_storage() < storage_needed(j->get_output_files())) continue;
 
         auto d = cpu->get_disks()[0];

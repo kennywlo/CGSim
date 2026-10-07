@@ -1,0 +1,400 @@
+{
+  "schema_version": "0.2",
+  "method": "dimension",
+  "algorithm": "lsst.ctrl.bps.quantum_clustering_funcs.dimension_clustering",
+  "clusters": [
+    {
+      "name": "step1detector",
+      "task_labels": [
+        "isr",
+        "calibrateImage",
+        "analyzeAmpOffsetMetadata",
+        "analyzeAmpInterfaceOffsetMetadata",
+        "analyzeInitialSummaryStats",
+        "analyzeCalibrateImageMetadata",
+        "standardizeSingleVisitStar"
+      ],
+      "dimensions": [
+        "detector"
+      ],
+      "equal_dimensions": [
+        [
+          "visit",
+          "exposure"
+        ]
+      ],
+      "partition_dimensions": [
+        "exposure"
+      ],
+      "partition_max_clusters": 50000,
+      "max_quanta": null,
+      "request_memory_mb": 5094,
+      "request_cpus": 1
+    },
+    {
+      "name": "step1b_visits",
+      "task_labels": [
+        "consolidateSingleVisitStar",
+        "consolidateVisitSummary"
+      ],
+      "dimensions": [
+        "visit"
+      ],
+      "equal_dimensions": [],
+      "partition_dimensions": [],
+      "partition_max_clusters": null,
+      "max_quanta": null,
+      "request_memory_mb": 2094,
+      "request_cpus": 1
+    },
+    {
+      "name": "step2d_refitpsf",
+      "task_labels": [
+        "refitPsfModelDetector"
+      ],
+      "dimensions": [
+        "visit"
+      ],
+      "equal_dimensions": [],
+      "partition_dimensions": [
+        "detector"
+      ],
+      "partition_max_clusters": 50000,
+      "max_quanta": null,
+      "request_memory_mb": 9277,
+      "request_cpus": 1
+    },
+    {
+      "name": "step2d_visits",
+      "task_labels": [
+        "recalibrateSingleVisitStar",
+        "standardizeRecalibratedStar"
+      ],
+      "dimensions": [
+        "visit"
+      ],
+      "equal_dimensions": [],
+      "partition_dimensions": [
+        "detector"
+      ],
+      "partition_max_clusters": 50000,
+      "max_quanta": null,
+      "request_memory_mb": 2198,
+      "request_cpus": 1
+    },
+    {
+      "name": "makeWarpTract",
+      "task_labels": [
+        "makeDirectWarp",
+        "makePsfMatchedWarp",
+        "makePrettyDirectWarp",
+        "makePrettyPsfMatchedWarp"
+      ],
+      "dimensions": [
+        "tract",
+        "visit"
+      ],
+      "equal_dimensions": [],
+      "partition_dimensions": [],
+      "partition_max_clusters": null,
+      "max_quanta": null,
+      "request_memory_mb": 4058,
+      "request_cpus": 1
+    },
+    {
+      "name": "coadd",
+      "task_labels": [
+        "selectDeepCoaddVisits",
+        "assembleDeepCoadd",
+        "assembleCellCoadd",
+        "detectCoaddPeaks",
+        "selectTemplateCoaddVisits",
+        "assembleTemplateCoadd"
+      ],
+      "dimensions": [
+        "tract",
+        "patch",
+        "band"
+      ],
+      "equal_dimensions": [],
+      "partition_dimensions": [],
+      "partition_max_clusters": null,
+      "max_quanta": null,
+      "request_memory_mb": 5087,
+      "request_cpus": 1
+    },
+    {
+      "name": "make_analysis_images",
+      "task_labels": [
+        "makeBinnedTemplateNImage",
+        "makeBinnedDeepNImage",
+        "makeBinnedCoaddImage",
+        "makeBinnedPrettyNImage",
+        "makeBinnedPrettyCoaddImage"
+      ],
+      "dimensions": [
+        "tract",
+        "band"
+      ],
+      "equal_dimensions": [],
+      "partition_dimensions": [],
+      "partition_max_clusters": null,
+      "max_quanta": null,
+      "request_memory_mb": 2663,
+      "request_cpus": 1
+    },
+    {
+      "name": "make_tract_analysis_images",
+      "task_labels": [
+        "makeWholeTractTemplateNImage",
+        "makeWholeTractDeepNImage",
+        "makeWholeTractImage",
+        "makeWholeTractPrettyCoaddImage",
+        "makeWholeTractPrettyNImage"
+      ],
+      "dimensions": [
+        "tract",
+        "band"
+      ],
+      "equal_dimensions": [],
+      "partition_dimensions": [],
+      "partition_max_clusters": null,
+      "max_quanta": null,
+      "request_memory_mb": 2663,
+      "request_cpus": 1
+    },
+    {
+      "name": "patch_postprocess",
+      "task_labels": [
+        "rewriteObject",
+        "computeObjectEpochs",
+        "standardizeObject"
+      ],
+      "dimensions": [
+        "tract",
+        "patch"
+      ],
+      "equal_dimensions": [],
+      "partition_dimensions": [],
+      "partition_max_clusters": null,
+      "max_quanta": null,
+      "request_memory_mb": 6581,
+      "request_cpus": 1
+    },
+    {
+      "name": "property_maps",
+      "task_labels": [
+        "makeHealSparsePropertyMaps"
+      ],
+      "dimensions": [
+        "tract",
+        "band"
+      ],
+      "equal_dimensions": [],
+      "partition_dimensions": [],
+      "partition_max_clusters": null,
+      "max_quanta": null,
+      "request_memory_mb": 33794,
+      "request_cpus": 1
+    },
+    {
+      "name": "step4a_reprocess_standardize",
+      "task_labels": [
+        "reprocessVisitImage",
+        "standardizeSource"
+      ],
+      "dimensions": [
+        "visit"
+      ],
+      "equal_dimensions": [],
+      "partition_dimensions": [
+        "detector"
+      ],
+      "partition_max_clusters": 50000,
+      "max_quanta": null,
+      "request_memory_mb": 6587,
+      "request_cpus": 1
+    },
+    {
+      "name": "diffim",
+      "task_labels": [
+        "buildTemplate",
+        "subtractImages",
+        "detectAndMeasureDiaSource",
+        "filterDiaSource",
+        "computeReliability",
+        "filterDiaSourcePostReliability",
+        "standardizeDiaSource"
+      ],
+      "dimensions": [
+        "visit"
+      ],
+      "equal_dimensions": [],
+      "partition_dimensions": [
+        "detector"
+      ],
+      "partition_max_clusters": 50000,
+      "max_quanta": null,
+      "request_memory_mb": 4449,
+      "request_cpus": 1
+    },
+    {
+      "name": "association",
+      "task_labels": [
+        "associateDiaSource",
+        "calculateDiaObject"
+      ],
+      "dimensions": [
+        "tract",
+        "patch"
+      ],
+      "equal_dimensions": [],
+      "partition_dimensions": [],
+      "partition_max_clusters": null,
+      "max_quanta": null,
+      "request_memory_mb": 2874,
+      "request_cpus": 1
+    },
+    {
+      "name": "skyCorrCluster",
+      "task_labels": [
+        "skyCorr",
+        "skyCorrExperimental"
+      ],
+      "dimensions": [
+        "visit"
+      ],
+      "equal_dimensions": [],
+      "partition_dimensions": [],
+      "partition_max_clusters": null,
+      "max_quanta": null,
+      "request_memory_mb": 16475,
+      "request_cpus": 1
+    },
+    {
+      "name": "step4c_forced_phot",
+      "task_labels": [
+        "forcedPhotObjectDetector"
+      ],
+      "dimensions": [
+        "visit"
+      ],
+      "equal_dimensions": [],
+      "partition_dimensions": [
+        "detector"
+      ],
+      "partition_max_clusters": 50000,
+      "max_quanta": null,
+      "request_memory_mb": 2459,
+      "request_cpus": 1
+    },
+    {
+      "name": "step4c_forced_phot_dia",
+      "task_labels": [
+        "forcedPhotDiaObjectDetector"
+      ],
+      "dimensions": [
+        "visit"
+      ],
+      "equal_dimensions": [],
+      "partition_dimensions": [
+        "detector"
+      ],
+      "partition_max_clusters": 50000,
+      "max_quanta": null,
+      "request_memory_mb": 2432,
+      "request_cpus": 1
+    },
+    {
+      "name": "deconvolve_tract_band",
+      "task_labels": [
+        "deconvolve"
+      ],
+      "dimensions": [
+        "tract",
+        "band"
+      ],
+      "equal_dimensions": [],
+      "partition_dimensions": [
+        "patch"
+      ],
+      "partition_max_clusters": 25000,
+      "max_quanta": null,
+      "request_memory_mb": 2835,
+      "request_cpus": 1
+    },
+    {
+      "name": "measureObjectUnforced_tract_band",
+      "task_labels": [
+        "measureObjectUnforced"
+      ],
+      "dimensions": [
+        "tract",
+        "band"
+      ],
+      "equal_dimensions": [],
+      "partition_dimensions": [
+        "patch"
+      ],
+      "partition_max_clusters": 25000,
+      "max_quanta": null,
+      "request_memory_mb": 2974,
+      "request_cpus": 1
+    },
+    {
+      "name": "fitDeepCoaddPsfGaussians_tract_band",
+      "task_labels": [
+        "fitDeepCoaddPsfGaussians"
+      ],
+      "dimensions": [
+        "tract",
+        "band"
+      ],
+      "equal_dimensions": [],
+      "partition_dimensions": [
+        "patch"
+      ],
+      "partition_max_clusters": 25000,
+      "max_quanta": null,
+      "request_memory_mb": 2663,
+      "request_cpus": 1
+    },
+    {
+      "name": "measureObjectForced_tract_band",
+      "task_labels": [
+        "measureObjectForced"
+      ],
+      "dimensions": [
+        "tract",
+        "band"
+      ],
+      "equal_dimensions": [],
+      "partition_dimensions": [
+        "patch"
+      ],
+      "partition_max_clusters": 25000,
+      "max_quanta": null,
+      "request_memory_mb": 2887,
+      "request_cpus": 1
+    }
+  ],
+  "overhead": {
+    "pipetask_init_s": null,
+    "final_job_s": null,
+    "per_quantum_startup_s": null
+  },
+  "wms_retry": {
+    "max_retries": 3,
+    "memory_multiplier": null
+  },
+  "provenance": {
+    "source": "lsst/drp_pipe",
+    "yaml": "bps/clustering/LSSTCam/DRP-clustering.yaml",
+    "resources": [
+      "bps/resources/LSSTCam/DRP.yaml"
+    ],
+    "ref": "w.2026.17",
+    "commit": "ecc8f22",
+    "memory_rule": "max over member tasks (assumption)"
+  }
+}
