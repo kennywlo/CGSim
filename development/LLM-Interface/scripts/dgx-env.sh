@@ -4,7 +4,7 @@
 
 _dgx_script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export CGSIM_SOURCE_ROOT="$(cd "${_dgx_script_dir}/../../.." && pwd)"
-export CGSIM_INSTALL_ROOT="/home/kennylo/llm-apps/app/CGSim-install"
+export CGSIM_INSTALL_ROOT="${CGSIM_INSTALL_ROOT:-/home/kennylo/llm-apps/app/CGSim-install-upstream}"
 export SIMGRID_INSTALL_ROOT="/home/kennylo/llm-apps/app/simgrid-install"
 
 export PATH="${CGSIM_INSTALL_ROOT}/bin:${PATH}"

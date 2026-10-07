@@ -7,10 +7,13 @@ simulation per `development/LLM-Interface/rubin_campaign_schema_v0.2.md`.
 ## Environments
 
 - **DGX Spark (local dev)**: repo at `~/llm-apps/app/CGSim`; CGSim installed at
-  `~/llm-apps/app/CGSim-install` (bin/cg-sim), SimGrid at
-  `~/llm-apps/app/simgrid-install`. Run with both `lib/` dirs on
-  `LD_LIBRARY_PATH`. Local LLM datagen via Ollama (`OLLAMA_HOST=localhost:11434`,
-  gpt-oss:120b) — no SLAC tunnel needed.
+  `~/llm-apps/app/CGSim-install-upstream` (bin/cg-sim; built from this tree by
+  `development/LLM-Interface/scripts/build-cgsim-dgx.sh`, the older `CGSim-install` has the
+  pre-upstream core), SimGrid at `~/llm-apps/app/simgrid-install`. `source
+  development/LLM-Interface/scripts/dgx-env.sh` puts both `lib/` dirs on `LD_LIBRARY_PATH`.
+  Local LLM datagen via Ollama (`OLLAMA_HOST=http://localhost:11434` — the scheme is
+  required — gpt-oss:120b), no SLAC tunnel needed. Python env with `openai`:
+  `~/miniconda3/envs/cgsim-rubin`.
 - **Perlmutter (production runs)**: repo at `/global/homes/k/kennylo/llm-apps/app/CGSim`.
   Runs go through `development/LLM-Interface/Makefile` sbatch targets (`datagen-submit`,
   `grpo-submit`) → `datagen_run.sh` (opens SOCKS5 tunnel to SLAC AI gateway;

@@ -36,19 +36,27 @@ mapping when real campaign files arrive.
 
 ## Build & run
 
+On DGX Spark, from the repo root (the scripts source `scripts/dgx-env.sh`):
+
+```bash
+development/LLM-Interface/scripts/build-cgsim-dgx.sh          # core -> ~/llm-apps/app/CGSim-install-upstream
+development/LLM-Interface/scripts/build-rubin-plugin-dgx.sh   # -> dispatch_plugins/rubin-plugin/build/libRubinDispatcherPlugin.so
+development/LLM-Interface/scripts/smoke-rubin-dag-dgx.sh      # synthetic demo + DAG-order check
+```
+
+Manual equivalent for the plugin (needs SimGrid, Boost, an installed CGSim, spdlog, SQLite3):
+
 ```bash
 cd dispatch_plugins/rubin-plugin
-# needs SimGrid, Boost, CGSim (installed from this tree), spdlog, SQLite3 discoverable, e.g. locally:
-cmake -B build \
-  -DSimGrid_PATH=$HOME/llm-apps/app/simgrid-install \
-  -DCMAKE_PREFIX_PATH="$HOME/llm-apps/app/simgrid-install;$HOME/llm-apps/app/local"
+cmake -B build -DSimGrid_PATH=$HOME/llm-apps/app/simgrid-install \
+  -DCMAKE_PREFIX_PATH="$HOME/llm-apps/app/simgrid-install;$HOME/llm-apps/app/CGSim-install-upstream"
 cmake --build build
-# generate demo inputs (synthetic v0.2 instances, 624 quanta -> 264 cluster jobs):
-python3 ../../rubin-data/generate_campaign.py
-# run:
-LD_LIBRARY_PATH="$HOME/llm-apps/app/simgrid-install/lib:$HOME/llm-apps/app/CGSim-install/lib" \
-  cg-sim -c ../../rubin-data/rubin_dag_config.json
+python3 ../../rubin-data/generate_campaign.py    # synthetic demo: 624 quanta -> 264 cluster jobs
+cg-sim -c ../../rubin-data/rubin_dag_config.json
 ```
+
+Real QuantumGraph bundles run through `rubin-data/build_real_bundle_run_config.py` (see its
+docstring), then `cg-sim` and `rubin-data/verify_dag_order.py`.
 
 Verified locally 2026-10-06 against the merged upstream core (`CGSim::Plugin` /
 `setWorkload` API): 264 jobs complete and every child starts at/after its last parent's
