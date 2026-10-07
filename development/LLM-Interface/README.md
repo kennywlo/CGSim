@@ -318,9 +318,13 @@ inputs, so the degraded resource is on the path the workload uses.
 | `high_coadd_burst` | 432 | USDF (Base) | 12 patches per visit (coadd-heavy) |
 | `high_load` | 394 | USDF (Base) | All compute sites at 20% capacity, 1.5x visits |
 
-Known limitation: with the plugin's current `GFLOPS × cpu_s × cores` flops formula, jobs
-run in ~1e-7 s of simulated time, so compute-capacity overrides (`usdf_degraded`,
-`high_load`) do not change makespan; the network, storage and workload-size scenarios do.
+Job duration equals the sampled `cpu_s` on the chosen CPU (the plugin sets
+`flops = cpu speed x cpu_s x cores`). At the demo scale (264 jobs, <=8 cores each) the grid
+has far more cores than jobs, so the compute-capacity overrides (`usdf_degraded`,
+`high_load`) still barely move makespan; the network, storage and workload-size scenarios
+do. Use more visits/patches to make compute the bottleneck.
+
+---
 
 ## Legacy flat-workload topology
 

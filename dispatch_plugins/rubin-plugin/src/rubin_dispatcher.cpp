@@ -23,6 +23,8 @@ void RUBIN_DISPATCHER::findAvailableCPU(CGSim::Job* j)
 
         j->set_disk(d->get_name());
         j->set_cpu(cpu->get_name());
+        // Job takes cpu_consumption_time seconds on the chosen CPU's cores.
+        j->set_flops(cpu->get_speed()*std::stod(j->get_property("cpu_consumption_time"))*j->get_cores());
         return;
     }
 }
@@ -31,8 +33,5 @@ void RUBIN_DISPATCHER::assignJob(CGSim::Job* job)
 {
   // TODO(Raees): queue routing by request memory (schema section 9) — pick the
   // (site, queue) tier matching job->get_memory_usage() instead of first-fit CPU.
-  auto* site = CGSim::GlobalManagers::get_resource_manager()->get_site(job->get_site());
-
-  job->set_flops(std::stol(site->get_property("GFLOPS"))*std::stod(job->get_property("cpu_consumption_time"))*job->get_cores());
   findAvailableCPU(job);
 }
