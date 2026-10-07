@@ -95,7 +95,7 @@ std::string QGRAPH_WORKLOAD::cluster_key(const Quantum& q, const json& clusterin
     return "sq_" + q.task + "_" + std::to_string(q.qid);
 }
 
-JobQueue QGRAPH_WORKLOAD::getWorkload()
+void QGRAPH_WORKLOAD::setWorkload(CGSim::JobQueue& jobs)
 {
     json qgraph     = load_qgraph_bundle(platform->get_property("qgraph_file"));
     json clustering = load_json(platform->get_property("clustering_file"));
@@ -147,21 +147,22 @@ JobQueue QGRAPH_WORKLOAD::getWorkload()
     }
 
     // ---- One Job per cluster ----
-    std::map<std::string, Job*> job_of;
+    // Ids stay numeric (1000+, sorted-key order) so EVENTS JOB_IDs match
+    // rubin-data/verify_dag_order.py; the cluster key is kept as a property.
+    std::map<std::string, CGSim::Job*> job_of;
+    std::unordered_map<std::string, std::string> job_by_id;
     long long next_jobid = 1000;
     for (auto& [key, qids] : members)
     {
-        Job* job = new Job();
-        job->jobid     = next_jobid++;
-        job->id        = key;
-        job->status    = "created";
-        job->retries   = 0;
-        job->comp_site = site;
-        job->priority  = 0;   // topo depth filled in below
+        CGSim::Job* job = new CGSim::Job();
+        std::string id = std::to_string(next_jobid++);
+        job->set_id(id);
+        job->set_property("cluster_key", key);
+        job->set_site(site);
 
         const json* spec = spec_of[key];
-        job->cores        = spec ? (*spec)["request_cpus"].get<int>() : 1;
-        job->memory_usage = spec ? (*spec)["request_memory_mb"].get<double>() : 2048.0;
+        job->set_cores(spec ? (*spec)["request_cpus"].get<int>() : 1);
+        job->set_memory_usage(std::to_string(spec ? (*spec)["request_memory_mb"].get<double>() : 2048.0) + "MB");
 
         double cpu_s = 0.0;
         for (long long qid : qids) {
@@ -171,15 +172,16 @@ JobQueue QGRAPH_WORKLOAD::getWorkload()
                           ? resources["models"][rkey]["cpu_s"] : json();
             cpu_s += sample_lognorm(model, 60.0);
         }
-        job->cpu_consumption_time = cpu_s;
+        job->set_property("cpu_consumption_time", std::to_string(cpu_s));
 
         job_of[key] = job;
+        job_by_id[id] = key;
     }
 
     // ---- Cluster-level DAG + cross-cluster dataset files ----
     // (qid, dataset_type) pairs consumed by any edge, to find terminal outputs
     std::set<std::pair<long long, std::string>> consumed;
-    std::set<std::pair<Job*, Job*>> dag_edges;
+    std::set<std::pair<CGSim::Job*, CGSim::Job*>> dag_edges;
     for (const auto& e : qgraph["edges"])
     {
         long long   pq = e["producer_qid"].get<long long>();
@@ -187,22 +189,21 @@ JobQueue QGRAPH_WORKLOAD::getWorkload()
         std::string dt = e["dataset_type"].get<std::string>();
         consumed.insert({pq, dt});
 
-        Job* pjob = job_of[cluster_of[pq]];
-        Job* cjob = job_of[cluster_of[cq]];
+        CGSim::Job* pjob = job_of[cluster_of[pq]];
+        CGSim::Job* cjob = job_of[cluster_of[cq]];
         if (pjob == cjob) continue;   // intra-cluster: node-local intermediate, no file
 
         // Producer side only: the product is written and storage-accounted on
-        // completion. It is NOT added to the consumer's input_files, because
-        // core resolves input locations once at t=0 (job_executor.cpp calls
-        // FileManager::request_file_location before any parent has run) and
-        // would throw on a file that doesn't exist yet. Consumer-side staging
-        // of parent products needs core support — see README "Known constraints".
+        // completion. It is not added to the consumer's input_files. Core now
+        // resolves input locations at execution time, so consumer-side staging
+        // is possible; this scaffold does not model it yet.
         std::string filename = dt + "_q" + std::to_string(pq);
-        pjob->output_files[filename] = dataset_bytes(dt, quanta[pq].outputs);
+        pjob->add_output_file(filename, std::to_string(dataset_bytes(dt, quanta[pq].outputs)) + "B");
 
         if (dag_edges.insert({pjob, cjob}).second) {
-            children[pjob].push_back(cjob);
-            parents_remaining[cjob]++;
+            std::string pid = pjob->get_id(), cid = cjob->get_id();
+            pjob->add_child(cid, 0.0);
+            cjob->add_parent(pid);
         }
     }
 
@@ -214,68 +215,41 @@ JobQueue QGRAPH_WORKLOAD::getWorkload()
 
     for (auto& [qid, q] : quanta)
     {
-        Job* job = job_of[cluster_of[qid]];
+        CGSim::Job* job = job_of[cluster_of[qid]];
         for (const auto& in : q.inputs) {
             std::string dt = in["dataset_type"].get<std::string>();
             if (produced_types.count(dt)) continue;
             std::string filename = dt + "_q" + std::to_string(qid);
-            long long bytes = in["bytes_est"].is_null() ? dataset_bytes(dt, json::array())
-                                                        : in["bytes_est"].get<long long>();
-            job->input_files[filename] = {bytes, {}};
+            job->add_input_file(filename);
         }
         for (const auto& out : q.outputs) {
             std::string dt = out["dataset_type"].get<std::string>();
             if (consumed.count({qid, dt})) continue;
-            job->output_files[dt + "_q" + std::to_string(qid)] = dataset_bytes(dt, q.outputs);
+            job->add_output_file(dt + "_q" + std::to_string(qid), std::to_string(dataset_bytes(dt, q.outputs)) + "B");
         }
     }
 
-    // ---- Topological depth -> priority (roots highest). Note: core's JobQueue
-    // is priority_queue<Job*>, which orders by pointer, not Job::operator< —
-    // correctness does not depend on this, since all non-root jobs return
-    // "pending" from assignJob() until their parents finish regardless of pop
-    // order. The field is set for when core honors it. ----
-    std::unordered_map<Job*, int> depth;
-    std::vector<Job*> order;
-    for (auto& [key, job] : job_of)
-        if (parents_remaining.find(job) == parents_remaining.end()) {
-            depth[job] = 0; order.push_back(job);
-        }
-    std::unordered_map<Job*, int> remaining = parents_remaining;
+    // ---- Roots are created at t=0; core sets child creation_time on release
+    // (-1 = waiting on parents). A cycle would stall the simulation, so check. ----
+    std::unordered_map<CGSim::Job*, int> remaining;
+    std::vector<CGSim::Job*> order;
+    for (auto& [key, job] : job_of) {
+        remaining[job] = job->get_parents().size();
+        if (remaining[job] == 0) {job->set_creation_time(0.0); order.push_back(job);}
+        else job->set_creation_time(-1.0);
+    }
+    const size_t n_roots = order.size();
     for (size_t i = 0; i < order.size(); ++i)
-        for (Job* child : children[order[i]])
-            if (--remaining[child] == 0) {
-                depth[child] = depth[order[i]] + 1; order.push_back(child);
-            }
+        for (const auto& [cid, delay] : order[i]->get_children()) {
+            CGSim::Job* child = job_of[job_by_id.at(cid)];
+            if (--remaining[child] == 0) order.push_back(child);
+        }
     if (order.size() != job_of.size())
         throw std::runtime_error("qgraph cluster DAG has a cycle");
 
-    int max_depth = 0;
-    for (auto& [job, d] : depth) max_depth = std::max(max_depth, d);
-
-    JobQueue jobs;
-    for (auto& [key, job] : job_of) {
-        job->priority = max_depth - depth[job];
-        jobs.push(job);
-    }
+    for (auto& [key, job] : job_of) jobs.push(job);
 
     std::cout << "QGRAPH_WORKLOAD: " << quanta.size() << " quanta -> "
               << job_of.size() << " cluster jobs ("
-              << order.size() - parents_remaining.size() << " roots, max depth "
-              << max_depth << "), site " << site << std::endl;
-    return jobs;
-}
-
-bool QGRAPH_WORKLOAD::ready(Job* job) const
-{
-    auto it = parents_remaining.find(job);
-    return it == parents_remaining.end() || it->second == 0;
-}
-
-void QGRAPH_WORKLOAD::markDone(Job* job)
-{
-    auto it = children.find(job);
-    if (it == children.end()) return;
-    for (Job* child : it->second) parents_remaining[child]--;
-    children.erase(it);   // idempotence: retried executions must not double-release
+              << n_roots << " roots), site " << site << std::endl;
 }

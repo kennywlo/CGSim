@@ -1,5 +1,6 @@
 {
   "Summit": {
+    "storage": "10000000000000B",
     "SITE_PROPERTIES": {
       "storage_capacity_bytes": "10000000000000",
       "GFLOPS": "3",
@@ -12,6 +13,7 @@
         "speed": 3200000000.0,
         "BW_CPU": "10GBps",
         "LAT_CPU": "1us",
+        "ram": "256GB",
         "properties": [],
         "disks": [
           {
@@ -1522,6 +1524,7 @@
     ]
   },
   "Base": {
+    "storage": "200000000000000B",
     "SITE_PROPERTIES": {
       "storage_capacity_bytes": "200000000000000",
       "GFLOPS": "3",
@@ -1534,6 +1537,7 @@
         "speed": 3200000000.0,
         "BW_CPU": "10GBps",
         "LAT_CPU": "1us",
+        "ram": "256GB",
         "properties": [],
         "disks": [
           {
@@ -4372,6 +4376,7 @@
     ]
   },
   "USDF": {
+    "storage": "5000000000000000B",
     "SITE_PROPERTIES": {
       "storage_capacity_bytes": "5000000000000000",
       "GFLOPS": "3",
@@ -4384,6 +4389,7 @@
         "speed": 3200000000.0,
         "BW_CPU": "10GBps",
         "LAT_CPU": "1us",
+        "ram": "256GB",
         "properties": [],
         "disks": [
           {
@@ -29442,6 +29448,7 @@
     ]
   },
   "FrDF": {
+    "storage": "2000000000000000B",
     "SITE_PROPERTIES": {
       "storage_capacity_bytes": "2000000000000000",
       "GFLOPS": "3",
@@ -29454,6 +29461,7 @@
         "speed": 3200000000.0,
         "BW_CPU": "10GBps",
         "LAT_CPU": "1us",
+        "ram": "256GB",
         "properties": [],
         "disks": [
           {
@@ -29467,6 +29475,7 @@
     "files": []
   },
   "UKDF": {
+    "storage": "1000000000000000B",
     "SITE_PROPERTIES": {
       "storage_capacity_bytes": "1000000000000000",
       "GFLOPS": "3",
@@ -29479,6 +29488,7 @@
         "speed": 3200000000.0,
         "BW_CPU": "10GBps",
         "LAT_CPU": "1us",
+        "ram": "256GB",
         "properties": [],
         "disks": [
           {

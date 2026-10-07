@@ -122,7 +122,7 @@ def main():
         "Grid_Name": "Rubin-Data-Facilities",
         "Sites_Information": site_info_path,
         "Sites_Connection_Information": os.path.abspath(args.sites_connection_info),
-        "Dispatcher_Plugin": os.path.abspath(args.dispatcher_plugin),
+        "Plugin": os.path.abspath(args.dispatcher_plugin),
         "Limited_Sites": [],
         "Custom_Parameters": {
             "qgraph_file": os.path.abspath(args.manifest),

@@ -4,7 +4,7 @@
 void OUTPUT::initialize()
 {
     if (initialized) return;
-    std::string file_name = platform->get_property("output_file");
+    std::string file_name = CGSim::GlobalManagers::get_resource_manager()->get_custom_parameter("output_file");
     if (std::filesystem::exists(file_name)) std::filesystem::remove(file_name);
 
     if (sqlite3_open(file_name.c_str(), &db) != SQLITE_OK) {
@@ -86,91 +86,97 @@ void OUTPUT::onSimulationEnd()
 
 }
 
-void OUTPUT::onJobTransferStart(Job* job, sg4::Mess const& me)
+void OUTPUT::onJobTransferStart(CGSim::Job* job)
 {
     json payload = {
-        {"site", job->comp_site},
-        {"host", job->comp_host}
+        {"site", job->get_site()},
+        {"host", job->get_cpu()}
     };
 
     insert_event("JobAllocation", "Started",
-                 std::to_string(job->jobid),
-                 job->status,
+                 job->get_id(),
+                 job->get_status(),
                  sg4::Engine::get_clock(),
                  payload.dump());
 }
 
-void OUTPUT::onJobTransferEnd(Job* job, sg4::Mess const& me)
+void OUTPUT::onJobTransferEnd(CGSim::Job* job)
 {
     json payload = {
-        {"site", job->comp_site},
-        {"host", job->comp_host},
-        {"site_storage_util", calculate_site_storage_util(job->comp_site)},
+        {"site", job->get_site()},
+        {"host", job->get_cpu()},
+        {"site_storage_util", calculate_site_storage_util(job->get_site())},
         {"grid_storage_util", calculate_grid_storage_util()},
-        {"site_cpu_util", calculate_site_cpu_util(job->comp_site)},
+        {"site_cpu_util", calculate_site_cpu_util(job->get_site())},
         {"grid_cpu_util", calculate_grid_cpu_util()}
     };
 
     insert_event("JobAllocation", "Finished",
-                 std::to_string(job->jobid),
-                 job->status,
+                 job->get_id(),
+                 job->get_status(),
                  sg4::Engine::get_clock(),
                  payload.dump());
 }
 
-void OUTPUT::onJobExecutionStart(Job* job, sg4::Exec const& ex)
+void OUTPUT::onJobExecutionStart(CGSim::Job* job)
 {
+    const double now = sg4::Engine::get_clock();
+    start_times[job->get_id()] = now;
+
     json payload = {
-        {"flops", job->flops},
-        {"site", job->comp_site},
-        {"host", job->comp_host},
-        {"cores", job->cores},
-        {"speed", job->comp_host_speed},
-        {"start_time", ex.get_start_time()},
-        {"site_cpu_util", calculate_site_cpu_util(job->comp_site)},
+        {"flops", job->get_flops()},
+        {"site", job->get_site()},
+        {"host", job->get_cpu()},
+        {"cores", job->get_cores()},
+        {"speed", job->get_cpu_speed()},
+        {"start_time", now},
+        {"site_cpu_util", calculate_site_cpu_util(job->get_site())},
         {"grid_cpu_util", calculate_grid_cpu_util()}
     };
 
     insert_event("JobExecution", "Started",
-                 std::to_string(job->jobid),
-                 job->status,
-                 ex.get_start_time(),
+                 job->get_id(),
+                 job->get_status(),
+                 now,
                  payload.dump());
 }
 
-void OUTPUT::onJobExecutionEnd(Job* job, sg4::Exec const& ex)
+void OUTPUT::onJobExecutionEnd(CGSim::Job* job)
 {
+    const double now = sg4::Engine::get_clock();
+
     json payload = {
-        {"flops", job->flops},
-        {"cores", job->cores},
-        {"site", job->comp_site},
-        {"host", job->comp_host},
-        {"speed", job->comp_host_speed},
-        {"cost", ex.get_cost()},
-        {"site_cpu_util", calculate_site_cpu_util(job->comp_site)},
+        {"flops", job->get_flops()},
+        {"cores", job->get_cores()},
+        {"site", job->get_site()},
+        {"host", job->get_cpu()},
+        {"speed", job->get_cpu_speed()},
+        {"cost", (1.0*job->get_flops())/(1.0*job->get_cores())},
+        {"site_cpu_util", calculate_site_cpu_util(job->get_site())},
         {"grid_cpu_util", calculate_grid_cpu_util()},
-        {"duration", ex.get_finish_time() - ex.get_start_time()},
-        {"retries", job->retries},
-        {"total_io_read_time", job->total_io_read_time},
-        {"file_transfer_queue_time", job->file_transfer_queue_time},
-        {"resource_waiting_queue_time", job->resource_waiting_queue_time},
-        {"total_queue_time", job->file_transfer_queue_time+job->resource_waiting_queue_time},
+        {"duration", now - start_times[job->get_id()]},
+        {"retries", job->get_retries()},
+        {"total_io_read_time", job->get_total_io_read_time()},
+        {"file_transfer_queue_time", job->get_file_transfer_queue_time()},
+        {"resource_waiting_queue_time", job->get_resource_waiting_queue_time()},
+        {"total_queue_time", job->get_file_transfer_queue_time()+job->get_resource_waiting_queue_time()},
     };
 
     insert_event("JobExecution", "Finished",
-                 std::to_string(job->jobid),
-                 job->status,
-                 ex.get_finish_time(),
+                 job->get_id(),
+                 job->get_status(),
+                 now,
                  payload.dump());
 }
 
-void OUTPUT::onFileTransferStart(Job* job,
+void OUTPUT::onFileTransferStart(CGSim::Job* job,
                                  const std::string& filename,
                                  const unsigned long long filesize,
-                                 sg4::Comm const& co,
                                  const std::string& src_site,
                                  const std::string& dst_site)
 {
+    const double now = sg4::Engine::get_clock();
+    start_times["transfer|" + job->get_id() + "|" + filename] = now;
     auto link = get_link(src_site, dst_site);
 
     json payload = {
@@ -181,24 +187,24 @@ void OUTPUT::onFileTransferStart(Job* job,
         {"bandwidth", link->get_bandwidth()},
         {"latency", link->get_latency()},
         {"link_load", link->get_load()},
-        {"site_storage_util", calculate_site_storage_util(job->comp_site)},
+        {"site_storage_util", calculate_site_storage_util(job->get_site())},
         {"grid_storage_util", calculate_grid_storage_util()}
     };
 
     insert_event("FileTransfer", "Started",
-                 std::to_string(job->jobid),
-                 job->status,
-                 co.get_start_time(),
+                 job->get_id(),
+                 job->get_status(),
+                 now,
                  payload.dump());
 }
 
-void OUTPUT::onFileTransferEnd(Job* job,
+void OUTPUT::onFileTransferEnd(CGSim::Job* job,
                                const std::string& filename,
                                const unsigned long long filesize,
-                               sg4::Comm const& co,
                                const std::string& src_site,
                                const std::string& dst_site)
 {
+    const double now = sg4::Engine::get_clock();
     auto link = get_link(src_site, dst_site);
 
     json payload = {
@@ -206,108 +212,114 @@ void OUTPUT::onFileTransferEnd(Job* job,
         {"size", filesize},
         {"source_site", src_site},
         {"destination_site", dst_site},
-        {"duration", co.get_finish_time() - co.get_start_time()},
+        {"duration", now - start_times["transfer|" + job->get_id() + "|" + filename]},
         {"bandwidth", link->get_bandwidth()},
         {"latency", link->get_latency()},
         {"link_load", link->get_load()},
-        {"site_storage_util", calculate_site_storage_util(job->comp_site)},
+        {"site_storage_util", calculate_site_storage_util(job->get_site())},
         {"grid_storage_util", calculate_grid_storage_util()}
     };
 
     insert_event("FileTransfer", "Finished",
-                 std::to_string(job->jobid),
-                 job->status,
-                 co.get_finish_time(),
+                 job->get_id(),
+                 job->get_status(),
+                 now,
                  payload.dump());
 }
 
-void OUTPUT::onFileReadStart(Job* job,
+void OUTPUT::onFileReadStart(CGSim::Job* job,
                             const std::string& filename,
-                            const unsigned long long filesize,
-                            sg4::Io const& io)
+                            const unsigned long long filesize)
 {
+    const double now = sg4::Engine::get_clock();
+    start_times["read|" + job->get_id() + "|" + filename] = now;
+
     json payload = {
         {"file", filename},
         {"size", filesize},
-        {"site", job->comp_site},
-        {"host", job->comp_host},
-        {"disk", job->disk},
-        {"disk_read_bw", job->disk_read_bw}
+        {"site", job->get_site()},
+        {"host", job->get_cpu()},
+        {"disk", job->get_disk()},
+        {"disk_read_bw", job->get_disk_read_bw()}
     };
 
     insert_event("FileRead", "Started",
-                 std::to_string(job->jobid),
-                 job->status,
-                 io.get_start_time(),
+                 job->get_id(),
+                 job->get_status(),
+                 now,
                  payload.dump());
 }
 
-void OUTPUT::onFileReadEnd(Job* job,
+void OUTPUT::onFileReadEnd(CGSim::Job* job,
                            const std::string& filename,
-                           const unsigned long long filesize,
-                           sg4::Io const& io)
+                           const unsigned long long filesize)
 {
+    const double now = sg4::Engine::get_clock();
+
     json payload = {
         {"file", filename},
         {"size", filesize},
-        {"site", job->comp_site},
-        {"host", job->comp_host},
-        {"disk", job->disk},
-        {"disk_read_bw", job->disk_read_bw},
-        {"duration", io.get_finish_time() - io.get_start_time()}
+        {"site", job->get_site()},
+        {"host", job->get_cpu()},
+        {"disk", job->get_disk()},
+        {"disk_read_bw", job->get_disk_read_bw()},
+        {"duration", now - start_times["read|" + job->get_id() + "|" + filename]}
     };
 
     insert_event("FileRead", "Finished",
-                 std::to_string(job->jobid),
-                 job->status,
-                 io.get_finish_time(),
+                 job->get_id(),
+                 job->get_status(),
+                 now,
                  payload.dump());
 }
 
-void OUTPUT::onFileWriteStart(Job* job,
+void OUTPUT::onFileWriteStart(CGSim::Job* job,
                              const std::string& filename,
-                             const unsigned long long filesize,
-                             sg4::Io const& io)
+                             const unsigned long long filesize)
 {
+    const double now = sg4::Engine::get_clock();
+    start_times["write|" + job->get_id() + "|" + filename] = now;
+
     json payload = {
         {"file", filename},
         {"size", filesize},
-        {"site", job->comp_site},
-        {"host", job->comp_host},
-        {"disk", job->disk},
-        {"disk_write_bw", job->disk_write_bw},
-        {"site_storage_util", calculate_site_storage_util(job->comp_site)},
+        {"site", job->get_site()},
+        {"host", job->get_cpu()},
+        {"disk", job->get_disk()},
+        {"disk_write_bw", job->get_disk_write_bw()},
+        {"site_storage_util", calculate_site_storage_util(job->get_site())},
         {"grid_storage_util", calculate_grid_storage_util()}
     };
 
     insert_event("FileWrite", "Started",
-                 std::to_string(job->jobid),
-                 job->status,
-                 io.get_start_time(),
+                 job->get_id(),
+                 job->get_status(),
+                 now,
                  payload.dump());
 }
 
-void OUTPUT::onFileWriteEnd(Job* job,
+void OUTPUT::onFileWriteEnd(CGSim::Job* job,
                            const std::string& filename,
-                           const unsigned long long filesize,
-                           sg4::Io const& io)
+                           const unsigned long long filesize)
 {
+    const double now = sg4::Engine::get_clock();
+
     json payload = {
         {"file", filename},
         {"size", filesize},
-        {"site", job->comp_site},
-        {"host", job->comp_host},
-        {"duration", io.get_finish_time() - io.get_start_time()},
-        {"disk", job->disk},
-        {"disk_write_bw", job->disk_write_bw},
-        {"site_storage_util", calculate_site_storage_util(job->comp_site)},
+        {"site", job->get_site()},
+        {"host", job->get_cpu()},
+        {"duration", now - start_times["write|" + job->get_id() + "|" + filename]},
+        {"disk", job->get_disk()},
+        {"disk_write_bw", job->get_disk_write_bw()},
+        {"site_storage_util", calculate_site_storage_util(job->get_site())},
         {"grid_storage_util", calculate_grid_storage_util()}
     };
 
     insert_event("FileWrite", "Finished",
-                 std::to_string(job->jobid),
-                 job->status,
-                 io.get_finish_time(),
+                 job->get_id(),
+                 job->get_status(),
+                 now,
                  payload.dump());
 }
 
@@ -323,37 +335,20 @@ sg4::Link* OUTPUT::get_link(const std::string& src_site, const std::string& dst_
 
 double OUTPUT::calculate_grid_cpu_util()
 {
-    double cores_used = 0;
-    double total_cores = std::stoul(platform->get_property("grid_storage"));
-    for (const auto& host : sg4::Engine::get_instance()->get_all_hosts()) {
-        cores_used += host->extension<HostExtensions>()->get_cores_used();
-    }
-    return cores_used/total_cores;
+    return CGSim::GlobalManagers::get_resource_manager()->get_grid_cpu_utilization();
 }
 
-double OUTPUT::calculate_site_cpu_util(std::string& site_name)
+double OUTPUT::calculate_site_cpu_util(const std::string& site_name)
 {
-    auto site = sg4::Engine::get_instance()->netzone_by_name_or_null(site_name);
-    double total_cores = std::stoul(site->get_property("total_cores"));
-    double cores_used = 0;
-    for (const auto& host : site->get_all_hosts()) {
-        cores_used += host->extension<HostExtensions>()->get_cores_used();
-    }
-    return cores_used/total_cores;
+    return CGSim::GlobalManagers::get_resource_manager()->get_site(site_name)->get_cpu_utilization();
 }
 
 double OUTPUT::calculate_grid_storage_util()
 {
-    double total_storage = std::stoull(platform->get_property("grid_storage"));
-    double remaining_storage = CGSim::FileManager::request_remaining_grid_storage();
-    return (1.0-remaining_storage/total_storage);
+    return CGSim::GlobalManagers::get_resource_manager()->get_grid_storage_utilization();
 }
 
-double OUTPUT::calculate_site_storage_util(std::string& site_name)
+double OUTPUT::calculate_site_storage_util(const std::string& site_name)
 {
-    auto   site = sg4::Engine::get_instance()->netzone_by_name_or_null(site_name);
-    double total_storage = std::stoull(site->get_property("storage_capacity_bytes"));
-    double remaining_storage = CGSim::FileManager::request_remaining_site_storage(site_name);
-    return (1.0-remaining_storage/total_storage);
+    return CGSim::GlobalManagers::get_resource_manager()->get_site(site_name)->get_storage_utilization();
 }
-

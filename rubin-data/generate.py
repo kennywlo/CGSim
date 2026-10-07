@@ -240,6 +240,7 @@ def build_site_info():
                 "speed": cl["speed"],
                 "BW_CPU": cl["BW_CPU"],
                 "LAT_CPU": cl["LAT_CPU"],
+                "ram": f"{cl['cores'] * 8}GB",   # placeholder: 8 GB/core
                 "properties": [],
                 "disks": [
                     {
@@ -251,6 +252,7 @@ def build_site_info():
             })
 
         out[site_name] = {
+            "storage": f"{cfg['storage_capacity_bytes']}B",
             "SITE_PROPERTIES": {
                 "storage_capacity_bytes": str(cfg["storage_capacity_bytes"]),
                 "GFLOPS": str(cfg["GFLOPS"]),

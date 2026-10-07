@@ -30,29 +30,31 @@ public:
 
     void onSimulationStart();
     void onSimulationEnd();
-    void onJobExecutionStart(Job* job, simgrid::s4u::Exec const& ex);
-    void onJobExecutionEnd(Job* job, simgrid::s4u::Exec const& ex);
-    void onJobTransferStart(Job* job, simgrid::s4u::Mess const& me);
-    void onJobTransferEnd(Job* job, simgrid::s4u::Mess const& me);
-    void onFileTransferStart(Job* job, const std::string& filename, const unsigned long long filesize, simgrid::s4u::Comm const& co, const std::string& src_site, const std::string& dst_site);
-    void onFileTransferEnd(Job* job, const std::string& filename, const unsigned long long filesize, simgrid::s4u::Comm const& co, const std::string& src_site, const std::string& dst_site);
-    void onFileReadStart(Job* job, const std::string& filename, const unsigned long long filesize, simgrid::s4u::Io const& io);
-    void onFileReadEnd(Job* job, const std::string& filename, const unsigned long long filesize, simgrid::s4u::Io const& io);
-    void onFileWriteStart(Job* job, const std::string& filename, const unsigned long long filesize, simgrid::s4u::Io const& io);
-    void onFileWriteEnd(Job* job, const std::string& filename, const unsigned long long filesize, simgrid::s4u::Io const& io);
+    void onJobExecutionStart(CGSim::Job* job);
+    void onJobExecutionEnd(CGSim::Job* job);
+    void onJobTransferStart(CGSim::Job* job);
+    void onJobTransferEnd(CGSim::Job* job);
+    void onFileTransferStart(CGSim::Job* job, const std::string& filename, const unsigned long long filesize, const std::string& src_site, const std::string& dst_site);
+    void onFileTransferEnd(CGSim::Job* job, const std::string& filename, const unsigned long long filesize, const std::string& src_site, const std::string& dst_site);
+    void onFileReadStart(CGSim::Job* job, const std::string& filename, const unsigned long long filesize);
+    void onFileReadEnd(CGSim::Job* job, const std::string& filename, const unsigned long long filesize);
+    void onFileWriteStart(CGSim::Job* job, const std::string& filename, const unsigned long long filesize);
+    void onFileWriteEnd(CGSim::Job* job, const std::string& filename, const unsigned long long filesize);
 
 
     double calculate_grid_cpu_util();
-    double calculate_site_cpu_util(std::string& site_name);
+    double calculate_site_cpu_util(const std::string& site_name);
     double calculate_grid_storage_util();
-    double calculate_site_storage_util(std::string& site_name);
+    double calculate_site_storage_util(const std::string& site_name);
     sg4::Link* get_link(const std::string& src_site, const std::string& dst_site);
 
 
 private:
     bool initialized = false;
     sqlite3 *db;
-    sg4::NetZone* platform = sg4::Engine::get_instance()->get_netzone_root();
+    // Core hooks no longer carry the SimGrid activity, so start times are kept
+    // here to derive durations (key: job id + file name where applicable).
+    std::unordered_map<std::string, double> start_times;
 };
 
 #endif

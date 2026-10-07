@@ -7,24 +7,26 @@ real work goes.
 
 ## What it does (v0 scaffold)
 
-- **`QGRAPH_WORKLOAD`** (`qgraph_workload.{h,cpp}`) — loads a v0.2 `qgraph_export.json`,
-  applies the `clustering.json` overlay (one CGSim `Job` per cluster, schema §5), samples
-  per-cluster CPU time from `resources.json` lognorm models (scipy `[shape, loc, scale]`
-  convention), derives the **cluster-level DAG** from the quantum `edges`, and
-  materializes cross-cluster and terminal datasets as producer-side output files
-  (written and storage-accounted on completion). External inputs (`raw`) become input
-  files, which triggers their staging transfer from the site where the generator
-  pre-registered them (Base by default). Intra-cluster intermediates are node-local and
-  not materialized; consumer-side reads of parent products are not modeled — see
-  constraint 5 below.
-- **`RUBIN_DISPATCHER`** (`rubin_dispatcher.{h,cpp}`) — SIMPLE_DISPATCHER's site/CPU
-  selection plus the **DAG gate**: `assignJob()` returns `"pending"` until every parent
-  cluster has finished. This uses the verified core mechanism (`util/job_executor.cpp`,
-  `start_server`): jobs left pending are re-polled after **every** execution completion,
-  so no core changes are needed for dependency-triggered release.
-- **`RubinDispatcherPlugin.cpp`** — plugin wiring; `onJobExecutionEnd` calls
-  `QGRAPH_WORKLOAD::markDone()` to release children, then logs via the unchanged
-  `OUTPUT` EVENTS writer (copied from simple-test-plugin).
+- **`QGRAPH_WORKLOAD`** (`qgraph_workload.{h,cpp}`) — `setWorkload()` loads a v0.2
+  `qgraph_export.json`, applies the `clustering.json` overlay (one CGSim `Job` per cluster,
+  schema §5), samples per-cluster CPU time from `resources.json` lognorm models (scipy
+  `[shape, loc, scale]` convention), derives the **cluster-level DAG** from the quantum
+  `edges`, and declares it on the Jobs with `add_parent()`/`add_child()`. Roots get
+  `creation_time` 0; dependents get -1 and core sets their creation time when the last
+  parent finishes. Job ids are numeric strings from 1000 (sorted cluster-key order, the
+  cluster key is kept as the `cluster_key` property) so EVENTS `JOB_ID`s match
+  `rubin-data/verify_dag_order.py`. Cross-cluster and terminal datasets become
+  producer-side output files (written and storage-accounted on completion). External inputs
+  (`raw`) become input files, which triggers their staging transfer from the site where the
+  generator pre-registered them (Base by default). Intra-cluster intermediates are
+  node-local and not materialized; consumer-side reads of parent products are not modeled
+  yet — see constraint 5 below.
+- **`RUBIN_DISPATCHER`** (`rubin_dispatcher.{h,cpp}`) — first-fit site/CPU selection as in
+  `simple-test-plugin`. There is no DAG gate in the plugin: core only submits a child job
+  after every parent has reached `FINISHED` (`src/core/actions.cpp`).
+- **`RubinDispatcherPlugin.cpp`** — `CGSim::Plugin` wiring; the `on*` hooks feed the
+  `OUTPUT` EVENTS writer (derived from `simple-test-plugin`). Core hooks no longer pass
+  SimGrid activities, so `OUTPUT` keeps its own start times to compute `duration`.
 
 Site selection: the campaign group that owns the qgraph (`provenance.group_id` →
 `campaign.json` group node `site`) decides `comp_site`; `default_site` custom parameter is
@@ -36,7 +38,7 @@ mapping when real campaign files arrive.
 
 ```bash
 cd dispatch_plugins/rubin-plugin
-# needs SimGrid, Boost, CGSim, spdlog, SQLite3 discoverable, e.g. locally:
+# needs SimGrid, Boost, CGSim (installed from this tree), spdlog, SQLite3 discoverable, e.g. locally:
 cmake -B build \
   -DSimGrid_PATH=$HOME/llm-apps/app/simgrid-install \
   -DCMAKE_PREFIX_PATH="$HOME/llm-apps/app/simgrid-install;$HOME/llm-apps/app/local"
@@ -48,42 +50,41 @@ LD_LIBRARY_PATH="$HOME/llm-apps/app/simgrid-install/lib:$HOME/llm-apps/app/CGSim
   cg-sim -c ../../rubin-data/rubin_dag_config.json
 ```
 
-Verified locally 2026-08-03: 264 jobs complete, and each `assembleCoadd` job starts at
-exactly the finish time of the last `makeWarp` in its patch (checked in the EVENTS db) —
-the DAG gate works through the unmodified core.
+Verified locally 2026-10-06 against the merged upstream core (`CGSim::Plugin` /
+`setWorkload` API): 264 jobs complete and every child starts at/after its last parent's
+end (`rubin-data/verify_dag_order.py`). Config notes for the current core: the plugin key
+is `"Plugin"` (was `"Dispatcher_Plugin"`), and `site_info.json` needs a per-site `storage`
+(e.g. `"5000000000000000B"`) and a per-CPU-cluster `ram` (e.g. `"256GB"`) — the old
+`SITE_PROPERTIES.storage_capacity_bytes` / `properties: [{"ram": ...}]` layout no longer
+parses (`Invalid Size Units`).
 
 Custom parameters consumed (all via root-netzone properties, like the template's
 `jobs_file`): `qgraph_file`, `clustering_file` (required); `campaign_file`,
 `resources_file`, `default_site` (optional); `output_file` (required by OUTPUT).
 
-## Known constraints inherited from core (verified 2026-08, `util/job_executor.cpp`)
+## Core behavior this plugin relies on (re-verified 2026-10, `src/core/`)
 
-1. **`getWorkload()` is one-shot** — no mid-run job injection. Rescue jobs (schema §4)
+1. **`setWorkload()` is one-shot** — no mid-run job injection. Rescue jobs (schema §4)
    must be pre-materialized in the initial queue and gated on "parent failed", or core
    needs a job-injection extension (schema open question 1).
-2. **At least one root must be schedulable in the initial pass**, otherwise
-   `start_server` blocks waiting for an Exec that never comes. Holds for any DAG with
-   runnable roots; also holds for the template, but worth remembering when adding
-   admission control.
-3. **`Job::retries` is polluted by dependency waiting** — the pending-poll loop increments
-   it on every re-poll, so it counts polls, not WMS attempts. Do **not** map it to
-   `attemptnr` in the §10 output plugin; track real attempts separately.
-4. **`JobQueue` is `std::priority_queue<Job*>`** — it orders by *pointer*, not
-   `Job::operator<`, so `priority` (set here to topological depth) is currently cosmetic.
-   Correctness doesn't depend on it (children gate on parents regardless of pop order).
-5. **Input file locations are resolved once at t=0** — `start_server` calls
-   `FileManager::request_file_location` on every job in the initial pass, before any
-   parent has run, and FileManager throws on files that don't exist yet. So a child
-   cannot list a parent's product among its `input_files`; this scaffold models
-   cross-cluster datasets producer-side only (write I/O + storage), and pre-registers
-   external inputs in `site_info.json` (the generator's `build_site_info`). Consumer-side
-   staging of parent products needs core to re-resolve locations at release time —
-   raise with Paul alongside open question 1 (job injection).
+2. **Dependents are released only when every parent is `FINISHED`.** A failed parent
+   leaves its subtree blocked rather than failing it — no `failed_upstream` propagation
+   yet (see TODO below).
+3. **`Job::retries`** is incremented on site-pending retries (and on global-dispatch
+   failures), not on DAG waiting, so the old polling pollution is gone. It still counts
+   dispatch attempts, not WMS attempts — track real attempts separately for the §10 output.
+4. **`JobQueue` orders by `creation_time`** (negative = waiting-on-parents, lowest
+   priority). The topological-depth `priority` field no longer exists.
+5. **Input file locations are resolved at execution time** (`execute_job` →
+   `FileManager::request_file`), so a child could list a parent's product in
+   `input_files`, provided the file exists once the parent has written it. This scaffold
+   still models cross-cluster datasets producer-side only; consumer-side staging is the
+   natural next step but is not implemented or tested here.
 
 ## TODO(Raees) — mapping to the roadmap / schema
 
-- **Failure semantics (§8, roadmap step 7)**: `markDone()` currently releases children on
-  *any* execution end, success or failure. Needs `failed`/`failed_upstream` propagation,
+- **Failure semantics (§8, roadmap step 7)**: core releases children only on parent
+  `FINISHED`; a failed parent just blocks its subtree. Needs `failed`/`failed_upstream` propagation,
   `failures.json` injection (site events, per-resource_key `p_fail`), and the
   consistent (`piloterrorcode`, `piloterrordiag`, log-tail) triple per §10.
 - **Queue routing (§9, roadmap step 3)**: replace first-fit CPU selection with
