@@ -87,7 +87,7 @@ echo "[$(date +%T)] done → ${FINAL_OUT}"
 
 # For GRPO runs, copy DB and prompts into the repo so they can be committed.
 if [[ -n "${PROPOSE_ONLY}" ]]; then
-    REPO_GRPO_DIR="${HOME}/llm-apps/app/CGSim/LLM-Interface/data/grpo"
+    REPO_GRPO_DIR="${HOME}/llm-apps/app/CGSim/development/LLM-Interface/data/grpo"
     mkdir -p "${REPO_GRPO_DIR}/db"
     cp "${PERSISTENT_DB}" "${REPO_GRPO_DIR}/db/"
     cp "${FINAL_OUT}" "${REPO_GRPO_DIR}/"

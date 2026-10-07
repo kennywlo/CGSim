@@ -24,7 +24,7 @@ def load_qgraph_bundle(path):
     (top-level quanta/edges arrays, as generate_campaign.py produces) or a
     real v0.2 streaming bundle: a qgraph_manifest.json whose quanta_file/
     edges_file point at quanta.jsonl/edges.jsonl (see
-    LLM-Interface/rubin_campaign_schema_v0.2.md section 4 and
+    development/LLM-Interface/rubin_campaign_schema_v0.2.md section 4 and
     rubin-data/qgraph_exporter.py), resolved relative to the manifest's own
     directory. Mirrors QGRAPH_WORKLOAD::load_qgraph_bundle in the C++ plugin.
     """

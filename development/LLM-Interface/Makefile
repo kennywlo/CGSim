@@ -16,7 +16,7 @@
 
 HERE         := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 CLIENTS_DIR  := $(HERE)clients
-RUBIN_DIR    := $(HERE)../rubin-data
+RUBIN_DIR    := $(HERE)../../rubin-data
 SCENARIOS_DIR := $(RUBIN_DIR)/scenarios
 MANIFEST     := $(SCENARIOS_DIR)/manifest.json
 

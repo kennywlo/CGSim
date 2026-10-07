@@ -19,7 +19,7 @@
 # failed (see LLM-Interface/perlmutter-plumbing-notes.md).
 
 _pm_script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-export CGSIM_SOURCE_ROOT="$(cd "${_pm_script_dir}/../.." && pwd)"
+export CGSIM_SOURCE_ROOT="$(cd "${_pm_script_dir}/../../.." && pwd)"
 
 : "${PSCRATCH:?PSCRATCH is not set -- are you on a NERSC login/compute node?}"
 

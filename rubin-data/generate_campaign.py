@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Generate synthetic rubin_campaign_schema v0.2 instance files for the
-rubin-plugin scaffold (see LLM-Interface/rubin_campaign_schema_v0.2.md).
+rubin-plugin scaffold (see development/LLM-Interface/rubin_campaign_schema_v0.2.md).
 
 Emits into --out-dir (default: rubin-data/campaign-demo/):
   campaign.json       - minimal campaign graph, one step / one group (schema section 2)

@@ -295,6 +295,7 @@ def build_site_info(
                 "speed": cl["speed"],
                 "BW_CPU": cl["BW_CPU"],
                 "LAT_CPU": cl["LAT_CPU"],
+                "ram": f"{cl['cores'] * 8}GB",   # placeholder: 8 GB/core
                 "properties": [],
                 "disks": [{
                     "name": cl["disk_name"],
@@ -304,6 +305,7 @@ def build_site_info(
             })
         registered = [[name, size] for name, size in files_by_site.get(site_name, {}).items()]
         out[site_name] = {
+            "storage": f"{storage}B",
             "SITE_PROPERTIES": {
                 "storage_capacity_bytes": str(storage),
                 "GFLOPS": str(cfg["GFLOPS"]),
@@ -402,7 +404,7 @@ def write_scenario(
         "Grid_Name": f"Rubin-{name}",
         "Sites_Information": str(site_info_path.resolve()),
         "Sites_Connection_Information": str(conn_info_path.resolve()),
-        "Dispatcher_Plugin": dispatch_plugin,
+        "Plugin": dispatch_plugin,
         "Limited_Sites": [],
         "Custom_Parameters": {
             "Num_of_Jobs": "-1",
@@ -432,7 +434,7 @@ DEFAULT_DISPATCH_PLUGIN = (
 )
 
 _SCRIPT_DIR = Path(__file__).parent
-DEFAULT_OUTPUT_DIR = _SCRIPT_DIR.parent.parent / "rubin-data" / "scenarios"
+DEFAULT_OUTPUT_DIR = _SCRIPT_DIR.parent.parent.parent / "rubin-data" / "scenarios"
 
 
 def main() -> None:

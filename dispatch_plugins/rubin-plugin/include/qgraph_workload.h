@@ -43,7 +43,7 @@ private:
   // format (top-level "quanta"/"edges" arrays, as generate_campaign.py
   // produces) or a real v0.2 streaming bundle -- a qgraph_manifest.json
   // whose "quanta_file"/"edges_file" point at quanta.jsonl/edges.jsonl,
-  // read line-by-line (see LLM-Interface/rubin_campaign_schema_v0.2.md
+  // read line-by-line (see development/LLM-Interface/rubin_campaign_schema_v0.2.md
   // section 4 and rubin-data/qgraph_exporter.py). Both are normalized into
   // the same in-memory shape ("tasks"/"quanta"/"edges"/"provenance") so
   // every line below this call is unchanged either way.

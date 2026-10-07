@@ -2,7 +2,7 @@
 """
 Standalone streaming validator for a rubin_campaign_schema v0.2 QuantumGraph
 export bundle: qgraph_manifest.json + quanta.jsonl + edges.jsonl (schema
-section 4 in LLM-Interface/rubin_campaign_schema_v0.2.md).
+section 4 in development/LLM-Interface/rubin_campaign_schema_v0.2.md).
 
 Pure standard library -- does not require an LSST environment. Reads
 quanta.jsonl/edges.jsonl one line at a time rather than loading either file

@@ -2,7 +2,7 @@
 """
 Stream a real LSST QuantumGraph into the rubin_campaign_schema v0.2 bundle
 (qgraph_manifest.json, quanta.jsonl, edges.jsonl -- schema section 4 in
-LLM-Interface/rubin_campaign_schema_v0.2.md).
+development/LLM-Interface/rubin_campaign_schema_v0.2.md).
 
 Requires an activated LSST Science Pipelines environment (lsst.pipe.base and
 lsst.daf.butler importable). On Perlmutter:
@@ -19,7 +19,7 @@ Usage:
         --out-dir /path/to/output \\
         --rc2-commit 432ea10
 
-Design notes (see LLM-Interface/rubin_campaign_schema_v0.2.md section 4):
+Design notes (see development/LLM-Interface/rubin_campaign_schema_v0.2.md section 4):
   - qid assignment is deterministic: nodes are sorted by their QuantumGraph
     nodeId (a UUID) before qids are assigned, so repeated exports of the same
     graph produce identical qid numbering.
@@ -45,7 +45,7 @@ from datetime import datetime, timezone
 SCHEMA_VERSION = "0.2"
 
 # Recorded once here so every export carries the same pinned provenance
-# regardless of caller. See LLM-Interface/TODO.md "Kenny: Perlmutter
+# regardless of caller. See development/LLM-Interface/TODO.md "Kenny: Perlmutter
 # readiness" and perlmutter-env.txt / lsst-products.txt for how these were
 # established.
 PINNED_PRODUCTS = {

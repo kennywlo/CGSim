@@ -1,6 +1,6 @@
 # rubin-plugin — CGSim dispatcher scaffold for Rubin DRP workloads
 
-Scaffold implementing the DAG scheme from `LLM-Interface/rubin_campaign_schema_v0.2.md`
+Scaffold implementing the DAG scheme from `development/LLM-Interface/rubin_campaign_schema_v0.2.md`
 (sections 4–6). Forked from `simple-test-plugin`; intended as the starting point for the
 actual Rubin plugin (Raees) — the `TODO(Raees)` markers and the list below say where the
 real work goes.
@@ -96,7 +96,7 @@ Custom parameters consumed (all via root-netzone properties, like the template's
 - **Data movement policy (§9, roadmap step 4)**: input staging as a precondition on group
   start, product consolidation to USDF; currently files just live where jobs run.
 - **§10 output plugin (roadmap step 5)**: replace/extend the EVENTS writer with the
-  99-field PanDA record emitter (`LLM-Interface/opensearch_reference/`), including the
+  99-field PanDA record emitter (`development/LLM-Interface/opensearch_reference/`), including the
   `jobname` join-key pattern and pilot-log artifacts.
 - **Serialization at scale (open question 4)**: single-JSON parse is fine at demo scale;
   revisit (JSON-lines streaming) before the 10^6-quantum stress test.
