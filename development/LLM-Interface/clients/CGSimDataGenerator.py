@@ -370,7 +370,12 @@ class CGSimDataGenerator:
             "answers it. Cover a range: per-site performance, file transfer bottlenecks, "
             "disk I/O, job duration/retries, CPU/storage utilization, and cross-site "
             "comparisons. Vary aggregation (AVG, MAX, COUNT, GROUP BY). Every SQL must be "
-            "valid SQLite using only the documented schema and json_extract for metadata."
+            "valid SQLite using only the documented schema and json_extract for metadata. "
+            "Prefer questions whose result has several rows with varying values: top-N "
+            "rankings of hosts, jobs or files (LIMIT 10-20), time-bucketed trends over TIME, "
+            "distributions, and comparisons across hosts or files. Avoid questions whose "
+            "result would be a single row, all zeros, or identical across rows, and avoid "
+            "GROUP BY site when the simulation has only one site."
             f"{exclusion}"
         )
         # 16000 cap: gives headroom for large-EVENTS scenarios (e.g. high_coadd_burst)

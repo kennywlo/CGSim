@@ -27,14 +27,20 @@ def run_cgsim(cgsim_bin: str, config: str, tmp_db: str, persistent_db: Path) -> 
     return True
 
 
-def run_datagen(python: str, clients_dir: str, db: Path, n: str, out: Path) -> bool:
-    r = subprocess.run([
+def run_datagen(python: str, clients_dir: str, db: Path, n: str, out: Path,
+                generator_model: str = "", judge_model: str = "") -> bool:
+    cmd = [
         python,
         str(Path(clients_dir) / "CGSimDataGenerator.py"),
         "--db", str(db),
         "--n", n,
         "--out", str(out),
-    ])
+    ]
+    if generator_model:
+        cmd += ["--generator-model", generator_model]
+    if judge_model:
+        cmd += ["--judge-model", judge_model]
+    r = subprocess.run(cmd)
     return r.returncode == 0
 
 
@@ -47,6 +53,8 @@ def main() -> None:
     ap.add_argument("--cgsim-bin",   required=True)
     ap.add_argument("--n",           default="100")
     ap.add_argument("--scenarios",   nargs="+", help="Subset of scenario names (default: all)")
+    ap.add_argument("--generator-model", default="")
+    ap.add_argument("--judge-model",     default="")
     args = ap.parse_args()
 
     manifest = json.loads(Path(args.manifest).read_text())
@@ -79,7 +87,8 @@ def main() -> None:
 
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         out = outputs_dir / f"sft_{name}_{ts}.jsonl"
-        if run_datagen(args.python, args.clients_dir, persistent_db, args.n, out):
+        if run_datagen(args.python, args.clients_dir, persistent_db, args.n, out,
+                       args.generator_model, args.judge_model):
             print(f"  -> {out}")
             ok.append(name)
         else:
