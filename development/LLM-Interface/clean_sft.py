@@ -54,6 +54,18 @@ NO_CALC = re.compile(
     r"[^\n.]*\bno\s+(?:additional|further|other|extra)\s+(?:calculations?|computations?)\b[^\n.]*\.?[ \t]*",
     re.IGNORECASE,
 )
+# Answer whose main finding is that the result is flat, or a result whose numeric columns are mostly constant
+NO_VARIATION = re.compile(
+    r"no variation to compare"
+    r"|no (?:meaningful |real |significant )?(?:variation|variance|differentiation) (?:across|among|between|to compare|in this|within)"
+    r"|nothing to compare"
+    r"|(?:completely|entirely|perfectly) uniform (?:result|group|set|across all)"
+    r"|(?:all|every)[^.\n]{0,60}\b(?:share|have|show|are)\b[^.\n]{0,30}\bidentical\b[^.\n]{0,40}\b(?:metrics?|values?|profiles?)\b"
+    r"|uniform (?:pattern|result|transfer|profile)",
+    re.IGNORECASE,
+)
+MIN_ROWS_FOR_CONSTANT_CHECK = 5
+CONSTANT_COLUMN_FRACTION = 0.7
 LONG_FLOAT = re.compile(r"(?<![\w.])(-?\d+)\.(\d{6,})(?![\w.])")
 MIN_ANSWER_CHARS = 120
 
@@ -79,6 +91,17 @@ def all_numeric_zero(tool_content: str) -> bool:
     rows = json.loads(tool_content).get("rows", [])
     nums = [c for r in rows for c in r if isinstance(c, (int, float)) and not isinstance(c, bool)]
     return bool(nums) and all(n == 0 for n in nums)
+
+
+def mostly_constant(tool: dict) -> bool:
+    rows = tool.get("rows", [])
+    if len(rows) < MIN_ROWS_FOR_CONSTANT_CHECK:
+        return False
+    numeric = [c for c in zip(*rows)
+               if all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in c)]
+    if len(numeric) < 2:
+        return False
+    return sum(len(set(c)) == 1 for c in numeric) / len(numeric) >= CONSTANT_COLUMN_FRACTION
 
 
 def main() -> None:
@@ -107,6 +130,9 @@ def main() -> None:
             seen_questions.add(question)
             if tool.get("row_count") == 1 and all_numeric_zero(msgs[3]["content"]):
                 stats["drop_single_row_all_zero"] += 1
+                continue
+            if NO_VARIATION.search(msgs[4]["content"]) or mostly_constant(tool):
+                stats["drop_no_variation"] += 1
                 continue
             answer = clean_answer(msgs[4]["content"])
             if len(answer) < MIN_ANSWER_CHARS:
