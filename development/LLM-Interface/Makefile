@@ -23,7 +23,7 @@ MANIFEST     := $(SCENARIOS_DIR)/manifest.json
 
 CGSIM_BIN    ?= $(HOME)/llm-apps/app/CGSim/build/cg-sim
 PYTHON       ?= $(HOME)/.conda/envs/wf-seminar/bin/python3.10
-ACCOUNT      ?= m2616
+ACCOUNT      ?= m1727
 OUTPUTS_DIR  ?= $(PSCRATCH)/cgsim-outputs
 EXAMPLES_PER_SCENARIO ?= 100
 GRPO_QUESTIONS_PER_SCENARIO ?= 150

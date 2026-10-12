@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=rubin-dag-smoke
-#SBATCH --account=m2616
+#SBATCH --account=m1727
 #SBATCH --qos=shared
 #SBATCH --constraint=cpu
 #SBATCH --ntasks=1

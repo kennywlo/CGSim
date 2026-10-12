@@ -244,7 +244,7 @@ make scenarios
 
 # 2. Submit all 9 scenarios — bump wall time for high_load's longer jobs
 make datagen-submit \
-    ACCOUNT=m2616 \
+    ACCOUNT=m1727 \
     OUTPUTS_DIR=$PSCRATCH/cgsim-outputs \
     SLURM_TIME=02:00:00
 
@@ -285,7 +285,7 @@ cd LLM-Interface
 make scenarios
 
 # 2a. Submit all 9 scenarios as individual sbatch jobs
-make datagen-submit ACCOUNT=m2616 OUTPUTS_DIR=$PSCRATCH/cgsim-outputs
+make datagen-submit ACCOUNT=m1727 OUTPUTS_DIR=$PSCRATCH/cgsim-outputs
 
 # 2b. Or run a single scenario locally (login node, SLAC tunnel must be active)
 make datagen-local SCENARIO=baseline OUTPUTS_DIR=$PSCRATCH/cgsim-outputs
@@ -361,7 +361,7 @@ Job type mix: 40% ISR · 25% SingleFrame · 15% Coadd · 12% DiffImaging · 8% F
 
 | Variable | Default | Notes |
 |---|---|---|
-| `ACCOUNT` | `m2616` | Slurm account |
+| `ACCOUNT` | `m1727` | Slurm account |
 | `OUTPUTS_DIR` | `$PSCRATCH/cgsim-outputs` | Where DBs and JSONL are written |
 | `EXAMPLES_PER_SCENARIO` | `100` | Questions generated per scenario |
 | `CGSIM_BIN` | `~/llm-apps/app/CGSim/build/cg-sim` | Path to simulator binary |

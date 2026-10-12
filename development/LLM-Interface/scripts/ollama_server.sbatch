@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=ollama-server
-#SBATCH --account=m2616_g
+#SBATCH --account=m1727_g
 #SBATCH --qos=regular
 #SBATCH --constraint=gpu
 #SBATCH --nodes=1
