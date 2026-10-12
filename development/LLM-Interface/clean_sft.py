@@ -14,7 +14,12 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent / "clients"))
-from CGSimDataGenerator import render_canonical  # noqa: E402
+
+
+def render_canonical(msgs):
+    # Lazy: CGSimDataGenerator pulls in openai, which merge.py's callers may not otherwise need
+    from CGSimDataGenerator import render_canonical as render
+    return render(msgs)
 
 DIRECT = re.compile(r"\b(?:taken|derived|come|comes|pulled|computed)\s+directly\s+from\b", re.IGNORECASE)
 TRAILING_CLAUSE = re.compile(r"\s*(?:\(|,|;|\band\b)[^,;.()\n]*" + DIRECT.pattern + r"[^.;\n)]*\)?", re.IGNORECASE)
@@ -104,6 +109,25 @@ def mostly_constant(tool: dict) -> bool:
     return sum(len(set(c)) == 1 for c in numeric) / len(numeric) >= CONSTANT_COLUMN_FRACTION
 
 
+def clean_example(ex: dict) -> "tuple[dict | None, str | None]":
+    """Clean one example. Returns (cleaned, None), or (None, reason) when it should be dropped.
+
+    Reasons: drop_single_row_all_zero, drop_no_variation, drop_short_answer.
+    Cross-example duplicate removal is left to the caller.
+    """
+    msgs = ex["messages"]
+    tool = json.loads(msgs[3]["content"])
+    if tool.get("row_count") == 1 and all_numeric_zero(msgs[3]["content"]):
+        return None, "drop_single_row_all_zero"
+    if NO_VARIATION.search(msgs[4]["content"]) or mostly_constant(tool):
+        return None, "drop_no_variation"
+    answer = clean_answer(msgs[4]["content"])
+    if len(answer) < MIN_ANSWER_CHARS:
+        return None, "drop_short_answer"
+    msgs[4]["content"] = answer
+    return {"messages": msgs, "text": render_canonical(msgs)}, None
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out-dir", required=True)
@@ -120,28 +144,20 @@ def main() -> None:
         stats = collections.Counter()
         for line in open(f):
             ex = json.loads(line)
-            msgs = ex["messages"]
-            tool = json.loads(msgs[3]["content"])
+            original_answer = ex["messages"][4]["content"].strip()
             stats["in"] += 1
-            question = msgs[1]["content"].strip()
+            question = ex["messages"][1]["content"].strip()
             if question in seen_questions:
                 stats["drop_duplicate_question"] += 1
                 continue
             seen_questions.add(question)
-            if tool.get("row_count") == 1 and all_numeric_zero(msgs[3]["content"]):
-                stats["drop_single_row_all_zero"] += 1
+            cleaned, reason = clean_example(ex)
+            if reason:
+                stats[reason] += 1
                 continue
-            if NO_VARIATION.search(msgs[4]["content"]) or mostly_constant(tool):
-                stats["drop_no_variation"] += 1
-                continue
-            answer = clean_answer(msgs[4]["content"])
-            if len(answer) < MIN_ANSWER_CHARS:
-                stats["drop_short_answer"] += 1
-                continue
-            if answer != msgs[4]["content"].strip():
+            if cleaned["messages"][4]["content"] != original_answer:
                 stats["answers_modified"] += 1
-            msgs[4]["content"] = answer
-            kept.append({"messages": msgs, "text": render_canonical(msgs)})
+            kept.append(cleaned)
             stats["out"] += 1
         out = out_dir / Path(f).name
         out.write_text("".join(json.dumps(e) + "\n" for e in kept))

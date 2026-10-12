@@ -5,11 +5,14 @@ For each scenario, only the most recent sft_<scenario>_*.jsonl is used
 (earlier files are superseded by reruns). Deduplication is on by default:
 within a scenario, duplicate questions are removed keeping the first
 occurrence; across scenarios, all questions are kept (they cover different
-simulation topologies).
+simulation topologies). Examples are first cleaned with clean_sft.py (boilerplate
+stripped, floats rounded, trivial / no-variation examples dropped); pass --no-clean
+to merge the raw files.
 
 Usage:
   python merge.py --outputs-dir $PSCRATCH/cgsim-outputs --out merged.jsonl
   python merge.py --outputs-dir $PSCRATCH/cgsim-outputs --out merged.jsonl --no-dedup
+  python merge.py --outputs-dir $PSCRATCH/cgsim-outputs --out merged.jsonl --no-clean
   python merge.py --outputs-dir $PSCRATCH/cgsim-outputs --out merged.jsonl --scenarios baseline usdf_degraded
 """
 
@@ -19,8 +22,11 @@ import argparse
 import json
 import re
 import sys
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent))
+from clean_sft import clean_example  # noqa: E402
 
 
 def latest_file_per_scenario(outputs_dir: Path, scenarios: "list[str] | None") -> "dict[str, Path]":
@@ -58,6 +64,17 @@ def extract_question(example: dict) -> str | None:
     return None
 
 
+def clean(examples: list[dict]) -> tuple[list[dict], Counter]:
+    out, dropped = [], Counter()
+    for e in examples:
+        cleaned, reason = clean_example(e)
+        if reason:
+            dropped[reason] += 1
+        else:
+            out.append(cleaned)
+    return out, dropped
+
+
 def dedup(examples: list[dict]) -> tuple[list[dict], int]:
     seen: set[str] = set()
     out = []
@@ -76,6 +93,7 @@ def main() -> None:
     ap.add_argument("--out",         required=True, help="Output merged JSONL path")
     ap.add_argument("--scenarios",   nargs="*",     help="Only include these scenarios (default: all)")
     ap.add_argument("--no-dedup",    action="store_true", help="Disable per-scenario deduplication")
+    ap.add_argument("--no-clean",    action="store_true", help="Skip clean_sft.py cleaning and filtering")
     args = ap.parse_args()
 
     outputs_dir = Path(args.outputs_dir)
@@ -87,28 +105,34 @@ def main() -> None:
         print("No non-empty sft_*.jsonl files found.", file=sys.stderr)
         sys.exit(1)
 
-    total_raw = total_kept = total_dropped = 0
+    total_raw = total_cleaned = total_kept = total_dropped = 0
+    clean_dropped: Counter = Counter()
     all_examples: list[dict] = []
 
-    print(f"{'Scenario':<35} {'Raw':>6} {'Kept':>6} {'Dropped':>8}  File")
-    print("-" * 90)
+    print(f"{'Scenario':<35} {'Raw':>6} {'Cleaned':>8} {'Kept':>6} {'Dups':>6}  File")
+    print("-" * 98)
     for scenario in sorted(files):
         path = files[scenario]
         examples = load_jsonl(path)
         raw = len(examples)
+        if not args.no_clean:
+            examples, reasons = clean(examples)
+            clean_dropped.update(reasons)
+        cleaned = len(examples)
         if dedup_on:
             examples, dropped = dedup(examples)
         else:
             dropped = 0
         kept = len(examples)
         total_raw += raw
+        total_cleaned += cleaned
         total_kept += kept
         total_dropped += dropped
         all_examples.extend(examples)
-        print(f"  {scenario:<33} {raw:>6} {kept:>6} {dropped:>8}  {path.name}")
+        print(f"  {scenario:<33} {raw:>6} {cleaned:>8} {kept:>6} {dropped:>6}  {path.name}")
 
-    print("-" * 90)
-    print(f"  {'TOTAL':<33} {total_raw:>6} {total_kept:>6} {total_dropped:>8}")
+    print("-" * 98)
+    print(f"  {'TOTAL':<33} {total_raw:>6} {total_cleaned:>8} {total_kept:>6} {total_dropped:>6}")
     print()
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -119,6 +143,8 @@ def main() -> None:
     print(f"Wrote {total_kept} examples → {out_path}")
     if dedup_on and total_dropped:
         print(f"  ({total_dropped} duplicates removed within-scenario)")
+    if clean_dropped:
+        print(f"  (dropped by cleaning: {dict(clean_dropped)})")
 
 
 if __name__ == "__main__":

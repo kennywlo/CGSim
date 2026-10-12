@@ -152,13 +152,15 @@ MERGE_DATE ?= $(shell date +%Y%m%d)
 MERGE_OUT  ?= $(HERE)data/askpanda_sft_cgsim_v$(MERGE_DATE).jsonl
 
 DEDUP ?= true
+CLEAN ?= true
 
 .PHONY: merge
 merge:
 	@$(PYTHON) $(CURDIR)/merge.py \
 	    --outputs-dir $(OUTPUTS_DIR) \
 	    --out         $(MERGE_OUT) \
-	    $(if $(filter false,$(DEDUP)),--no-dedup,)
+	    $(if $(filter false,$(DEDUP)),--no-dedup,) \
+	    $(if $(filter false,$(CLEAN)),--no-clean,)
 
 # ---- Ollama server + datagen ----
 
