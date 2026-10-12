@@ -7,7 +7,7 @@
 #SBATCH --ntasks=1
 #SBATCH --gpus=4
 #SBATCH --cpus-per-task=64
-#SBATCH --mem=240G
+#SBATCH --mem=200G
 #SBATCH --time=04:00:00
 #SBATCH --image=ollama/ollama:latest
 #SBATCH --output=/pscratch/sd/k/kennylo/cgsim-outputs/logs/ollama-server-%j.log
