@@ -62,9 +62,7 @@ public:
     void set_max_retries(unsigned long n) noexcept{MAX_RETRIES=n;}
     unsigned long get_max_retries() const noexcept{return MAX_RETRIES;}
 
-    std::unordered_map<std::string,std::string>& get_incoming_file_transfers() noexcept{return incoming_file_transfers;}
     const std::unordered_map<std::string,std::string>& get_incoming_file_transfers() const noexcept{return incoming_file_transfers;}
-
     const std::unordered_map<std::string, File*>& get_files() const noexcept {return files;}
 
 private:

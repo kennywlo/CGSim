@@ -31,6 +31,21 @@ inline unsigned long long parse_units_size(std::string s) {
     return static_cast<unsigned long long>(n * it->second);
 }
 
+inline unsigned long long parse_units_time(std::string s) {
+    s.erase(std::remove_if(s.begin(), s.end(), [](unsigned char c){ return std::isspace(c); }), s.end());
+    size_t i = 0; while (i < s.size() && (std::isdigit((unsigned char)s[i]) || s[i] == '.' || s[i] == 'e' || s[i] == 'E' || ((s[i] == '+' || s[i] == '-') && i > 0 && (s[i-1] == 'e' || s[i-1] == 'E'))) ) ++i;
+    if (!i) throw std::invalid_argument("Invalid Time Units");
+    double n = std::stod(s.substr(0, i)); std::string u = s.substr(i);
+    std::transform(u.begin(), u.end(), u.begin(), [](unsigned char c){ return std::tolower(c); });
+    static const std::unordered_map<std::string, double> units{
+        {"ms",0.001},{"s",1.0},{"m",60.0},{"h",3600.0},{"d",86400.0},
+        {"w",604800.0},{"y",31536000.0}
+    };
+    auto it = units.find(u);
+    if (it == units.end() || n < 0) throw std::invalid_argument("Invalid Time Units");
+    return static_cast<unsigned long long>(n * it->second);
+}
+  
 }
 
 }
